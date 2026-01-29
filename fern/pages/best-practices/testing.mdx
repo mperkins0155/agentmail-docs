@@ -1,0 +1,613 @@
+---
+title: Testing Best Practices
+subtitle: How to test your AgentMail integrations
+slug: best-practices/testing
+description: Learn how to write comprehensive tests for your AgentMail-powered applications and ensure reliability.
+---
+
+## Overview
+
+Testing your AgentMail integrations is crucial for building reliable email agents. This guide covers testing strategies, best practices, and examples to help you write comprehensive test suites.
+
+## Testing Strategies
+
+### Unit Testing
+
+Unit tests focus on individual functions and components in isolation.
+
+<CodeBlocks>
+```typescript title="TypeScript"
+import { describe, it, expect, vi } from 'vitest';
+import { AgentMailClient } from 'agentmail';
+
+describe('Email Handler', () => {
+  it('should create an inbox successfully', async () => {
+    const mockClient = {
+      inboxes: {
+        create: vi.fn().mockResolvedValue({
+          inboxId: 'test@agentmail.to',
+          username: 'test',
+          domain: 'agentmail.to'
+        })
+      }
+    };
+
+    const result = await mockClient.inboxes.create();
+    expect(result.inboxId).toBe('test@agentmail.to');
+    expect(mockClient.inboxes.create).toHaveBeenCalledOnce();
+  });
+
+  it('should handle inbox creation errors', async () => {
+    const mockClient = {
+      inboxes: {
+        create: vi.fn().mockRejectedValue(new Error('API Error'))
+      }
+    };
+
+    await expect(mockClient.inboxes.create()).rejects.toThrow('API Error');
+  });
+});
+```
+
+```python title="Python"
+import pytest
+from unittest.mock import Mock, patch
+from agentmail import AgentMail
+
+class TestEmailHandler:
+    @patch('agentmail.AgentMail')
+    def test_create_inbox_success(self, mock_client):
+        # Mock the inbox creation
+        mock_inbox = Mock()
+        mock_inbox.inbox_id = 'test@agentmail.to'
+        mock_inbox.username = 'test'
+        mock_inbox.domain = 'agentmail.to'
+        
+        mock_client.return_value.inboxes.create.return_value = mock_inbox
+        
+        client = AgentMail(api_key='test_key')
+        result = client.inboxes.create()
+        
+        assert result.inbox_id == 'test@agentmail.to'
+        mock_client.return_value.inboxes.create.assert_called_once()
+
+    @patch('agentmail.AgentMail')
+    def test_create_inbox_error(self, mock_client):
+        # Mock an error
+        mock_client.return_value.inboxes.create.side_effect = Exception('API Error')
+        
+        client = AgentMail(api_key='test_key')
+        
+        with pytest.raises(Exception, match='API Error'):
+            client.inboxes.create()
+```
+</CodeBlocks>
+
+### Integration Testing
+
+Integration tests verify that your application works correctly with the AgentMail API.
+
+<CodeBlocks>
+```typescript title="TypeScript"
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { AgentMailClient } from 'agentmail';
+
+describe('AgentMail Integration', () => {
+  let client: AgentMailClient;
+  let testInboxId: string;
+
+  beforeAll(async () => {
+    client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_TEST_API_KEY,
+    });
+    
+    // Create a test inbox
+    const inbox = await client.inboxes.create({
+      username: `test-${Date.now()}`,
+    });
+    testInboxId = inbox.inboxId;
+  });
+
+  afterAll(async () => {
+    // Clean up test inbox
+    if (testInboxId) {
+      await client.inboxes.delete(testInboxId);
+    }
+  });
+
+  it('should send and receive emails', async () => {
+    // Send an email
+    await client.inboxes.messages.send(testInboxId, {
+      to: testInboxId,
+      subject: 'Test Email',
+      text: 'This is a test email',
+    });
+
+    // Wait for email to be processed
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Retrieve threads
+    const threads = await client.inboxes.threads.list(testInboxId);
+    
+    expect(threads.items.length).toBeGreaterThan(0);
+    expect(threads.items[0].subject).toBe('Test Email');
+  });
+});
+```
+
+```python title="Python"
+import pytest
+import time
+import os
+from agentmail import AgentMail
+
+@pytest.fixture
+def client():
+    return AgentMail(api_key=os.getenv('AGENTMAIL_TEST_API_KEY'))
+
+@pytest.fixture
+def test_inbox(client):
+    # Create test inbox
+    inbox = client.inboxes.create(username=f"test-{int(time.time())}")
+    yield inbox
+    # Clean up
+    client.inboxes.delete(inbox.inbox_id)
+
+def test_send_and_receive_email(client, test_inbox):
+    # Send an email
+    client.inboxes.messages.send(
+        inbox_id=test_inbox.inbox_id,
+        to=test_inbox.inbox_id,
+        subject='Test Email',
+        text='This is a test email'
+    )
+    
+    # Wait for email to be processed
+    time.sleep(2)
+    
+    # Retrieve threads
+    threads = client.inboxes.threads.list(test_inbox.inbox_id)
+    
+    assert len(threads.items) > 0
+    assert threads.items[0].subject == 'Test Email'
+```
+</CodeBlocks>
+
+### End-to-End Testing
+
+E2E tests simulate real user workflows and agent behaviors.
+
+<CodeBlocks>
+```typescript title="TypeScript (Playwright)"
+import { test, expect } from '@playwright/test';
+import { AgentMailClient } from 'agentmail';
+
+test.describe('Email Agent Workflow', () => {
+  let client: AgentMailClient;
+  let inboxId: string;
+
+  test.beforeAll(async () => {
+    client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_API_KEY,
+    });
+    
+    const inbox = await client.inboxes.create();
+    inboxId = inbox.inboxId;
+  });
+
+  test('should handle incoming email and respond automatically', async () => {
+    // Send a test email
+    await client.inboxes.messages.send(inboxId, {
+      to: inboxId,
+      subject: 'Help Request',
+      text: 'I need help with my account',
+    });
+
+    // Wait for agent to process and respond
+    await test.step('Wait for agent response', async () => {
+      let responseFound = false;
+      for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const threads = await client.inboxes.threads.list(inboxId);
+        const helpThread = threads.items.find(t => t.subject === 'Help Request');
+        
+        if (helpThread && helpThread.messageCount > 1) {
+          responseFound = true;
+          break;
+        }
+      }
+      
+      expect(responseFound).toBe(true);
+    });
+  });
+
+  test.afterAll(async () => {
+    await client.inboxes.delete(inboxId);
+  });
+});
+```
+</CodeBlocks>
+
+## Testing Webhooks
+
+Webhooks require special testing considerations since they involve external callbacks.
+
+<CodeBlocks>
+```typescript title="TypeScript (Express + Supertest)"
+import request from 'supertest';
+import express from 'express';
+import crypto from 'crypto';
+
+// Your webhook handler
+const app = express();
+app.use(express.json());
+
+app.post('/webhooks/agentmail', (req, res) => {
+  const { event, data } = req.body;
+  
+  if (event === 'message.received') {
+    // Handle message received
+    console.log('Received message:', data);
+  }
+  
+  res.status(200).json({ success: true });
+});
+
+describe('Webhook Handler', () => {
+  it('should handle message.received event', async () => {
+    const payload = {
+      event: 'message.received',
+      data: {
+        messageId: 'msg_123',
+        inboxId: 'test@agentmail.to',
+        subject: 'Test',
+        from: 'sender@example.com',
+      },
+    };
+
+    const response = await request(app)
+      .post('/webhooks/agentmail')
+      .send(payload)
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+  });
+
+  it('should validate webhook signatures', async () => {
+    const secret = 'webhook_secret';
+    const payload = JSON.stringify({
+      event: 'message.received',
+      data: { messageId: 'msg_123' },
+    });
+
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex');
+
+    const response = await request(app)
+      .post('/webhooks/agentmail')
+      .set('X-AgentMail-Signature', signature)
+      .send(payload)
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+  });
+});
+```
+
+```python title="Python (Flask + pytest)"
+import hmac
+import hashlib
+import json
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/webhooks/agentmail', methods=['POST'])
+def webhook_handler():
+    data = request.get_json()
+    event = data.get('event')
+    
+    if event == 'message.received':
+        # Handle message received
+        print('Received message:', data.get('data'))
+    
+    return jsonify({'success': True})
+
+def test_webhook_message_received(client):
+    payload = {
+        'event': 'message.received',
+        'data': {
+            'messageId': 'msg_123',
+            'inboxId': 'test@agentmail.to',
+            'subject': 'Test',
+            'from': 'sender@example.com',
+        },
+    }
+    
+    response = client.post(
+        '/webhooks/agentmail',
+        json=payload,
+        content_type='application/json'
+    )
+    
+    assert response.status_code == 200
+    assert response.json['success'] is True
+
+def test_webhook_signature_validation(client):
+    secret = b'webhook_secret'
+    payload = json.dumps({
+        'event': 'message.received',
+        'data': {'messageId': 'msg_123'},
+    })
+    
+    signature = hmac.new(
+        secret,
+        payload.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    response = client.post(
+        '/webhooks/agentmail',
+        data=payload,
+        headers={'X-AgentMail-Signature': signature},
+        content_type='application/json'
+    )
+    
+    assert response.status_code == 200
+    assert response.json['success'] is True
+```
+</CodeBlocks>
+
+## Test Coverage
+
+Aim for comprehensive test coverage across your codebase.
+
+### Setting Up Coverage Tools
+
+<CodeBlocks>
+```bash title="TypeScript (Vitest)"
+npm install -D vitest @vitest/coverage-v8
+```
+
+```bash title="Python (pytest-cov)"
+pip install pytest-cov
+```
+</CodeBlocks>
+
+### Running Tests with Coverage
+
+<CodeBlocks>
+```bash title="TypeScript"
+# Run tests with coverage
+npx vitest run --coverage
+
+# Set coverage thresholds in vitest.config.ts
+export default {
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json'],
+      lines: 80,
+      functions: 80,
+      branches: 75,
+      statements: 80,
+    },
+  },
+};
+```
+
+```bash title="Python"
+# Run tests with coverage
+pytest --cov=your_module --cov-report=html --cov-report=term
+
+# Set coverage requirements in .coveragerc
+[run]
+source = your_module
+
+[report]
+fail_under = 80
+show_missing = True
+```
+</CodeBlocks>
+
+## Mocking External Services
+
+When testing, mock the AgentMail API to avoid hitting rate limits and ensure consistent test results.
+
+<CodeBlocks>
+```typescript title="TypeScript (MSW)"
+import { setupServer } from 'msw/node';
+import { rest } from 'msw';
+
+const server = setupServer(
+  rest.post('https://api.agentmail.to/v1/inboxes', (req, res, ctx) => {
+    return res(
+      ctx.status(201),
+      ctx.json({
+        inboxId: 'test@agentmail.to',
+        username: 'test',
+        domain: 'agentmail.to',
+      })
+    );
+  }),
+
+  rest.get('https://api.agentmail.to/v1/inboxes/:inboxId/threads', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        items: [
+          {
+            threadId: 'thread_123',
+            subject: 'Test Email',
+            messageCount: 1,
+          },
+        ],
+      })
+    );
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+```
+
+```python title="Python (responses)"
+import responses
+from agentmail import AgentMail
+
+@responses.activate
+def test_create_inbox_mocked():
+    # Mock the API response
+    responses.add(
+        responses.POST,
+        'https://api.agentmail.to/v1/inboxes',
+        json={
+            'inboxId': 'test@agentmail.to',
+            'username': 'test',
+            'domain': 'agentmail.to',
+        },
+        status=201
+    )
+    
+    client = AgentMail(api_key='test_key')
+    inbox = client.inboxes.create()
+    
+    assert inbox.inbox_id == 'test@agentmail.to'
+
+@responses.activate
+def test_list_threads_mocked():
+    responses.add(
+        responses.GET,
+        'https://api.agentmail.to/v1/inboxes/test@agentmail.to/threads',
+        json={
+            'items': [
+                {
+                    'threadId': 'thread_123',
+                    'subject': 'Test Email',
+                    'messageCount': 1,
+                },
+            ],
+        },
+        status=200
+    )
+    
+    client = AgentMail(api_key='test_key')
+    threads = client.inboxes.threads.list('test@agentmail.to')
+    
+    assert len(threads.items) == 1
+    assert threads.items[0].subject == 'Test Email'
+```
+</CodeBlocks>
+
+## CI/CD Integration
+
+Integrate your tests into your CI/CD pipeline for automated testing.
+
+### GitHub Actions Example
+
+```yaml title=".github/workflows/test.yml"
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+        env:
+          AGENTMAIL_TEST_API_KEY: ${{ secrets.AGENTMAIL_TEST_API_KEY }}
+      
+      - name: Run tests with coverage
+        run: npm run test:coverage
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage-final.json
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Test Environments">
+    Create separate AgentMail accounts or pods for testing to avoid interfering with production data.
+  </Step>
+  
+  <Step title="Clean Up Test Data">
+    Always delete test inboxes and data after tests complete to avoid clutter and cost.
+  </Step>
+  
+  <Step title="Test Error Scenarios">
+    Test not just the happy path, but also error cases like network failures, invalid data, and rate limits.
+  </Step>
+  
+  <Step title="Use Fixtures">
+    Create reusable test fixtures for common scenarios like test inboxes and sample emails.
+  </Step>
+  
+  <Step title="Mock External Dependencies">
+    Mock the AgentMail API in unit tests to ensure fast, reliable tests that don't depend on external services.
+  </Step>
+  
+  <Step title="Test Webhooks Locally">
+    Use tools like ngrok or localhost tunneling to test webhook handlers during development.
+  </Step>
+</Steps>
+
+## Testing Tools
+
+<CardGroup>
+  <Card title="Vitest" href="https://vitest.dev">
+    Fast unit testing framework for TypeScript/JavaScript
+  </Card>
+  <Card title="Jest" href="https://jestjs.io">
+    Popular JavaScript testing framework
+  </Card>
+  <Card title="pytest" href="https://pytest.org">
+    Powerful Python testing framework
+  </Card>
+  <Card title="MSW" href="https://mswjs.io">
+    Mock Service Worker for API mocking
+  </Card>
+  <Card title="Playwright" href="https://playwright.dev">
+    End-to-end testing framework
+  </Card>
+  <Card title="Postman" href="https://www.postman.com">
+    API testing and documentation
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup>
+  <Card title="Idempotency" icon="fa-solid fa-repeat" href="/best-practices/idempotency">
+    Learn about idempotency best practices
+  </Card>
+  <Card title="Email Deliverability" icon="fa-solid fa-envelope-circle-check" href="/best-practices/email-deliverability">
+    Improve your email deliverability
+  </Card>
+  <Card title="CI/CD Guide" icon="fa-solid fa-gears" href="/guides/cicd">
+    Set up continuous integration and deployment
+  </Card>
+</CardGroup>

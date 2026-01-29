@@ -1,0 +1,678 @@
+---
+title: Interactive Development
+subtitle: Build and test AgentMail applications with live preview and visual tools
+slug: guides/interactive-development
+description: Learn how to use modern development tools like WebContainers, visual editors, and AI assistants to build AgentMail applications faster.
+---
+
+## Overview
+
+Modern development tools enable you to build, test, and iterate on AgentMail applications directly in your browser with instant feedback. This guide covers interactive development environments, live preview tools, and AI-powered coding assistants.
+
+## WebContainer-Based Development
+
+WebContainers allow you to run Node.js directly in the browser, providing instant feedback and live previews.
+
+### StackBlitz
+
+StackBlitz uses WebContainers to provide a full development environment in your browser.
+
+<Steps>
+  <Step title="Quick Start">
+    Click the button below to open a pre-configured AgentMail starter project:
+    
+    <Card
+      title="Open in StackBlitz"
+      icon="fa-solid fa-bolt"
+      href="https://stackblitz.com/fork/node-agentmail-starter"
+      target="_blank"
+    />
+    
+    The starter includes:
+    - AgentMail SDK pre-installed
+    - Sample webhook handler
+    - Live preview environment
+    - Hot module reloading
+  </Step>
+
+  <Step title="Configure API Key">
+    In StackBlitz, add your API key to the environment:
+    
+    1. Click the lock icon (🔒) in the left sidebar
+    2. Add `AGENTMAIL_API_KEY` with your key
+    3. The app will automatically restart with your credentials
+  </Step>
+
+  <Step title="Start Development">
+    The development server starts automatically. Edit files and see changes instantly:
+    
+    ```typescript title="index.ts"
+    import { AgentMailClient } from 'agentmail';
+
+    const client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_API_KEY,
+    });
+
+    // Create an inbox
+    const inbox = await client.inboxes.create();
+    console.log('Inbox created:', inbox.inboxId);
+    ```
+    
+    Changes appear immediately in the preview pane.
+  </Step>
+
+  <Step title="Test Webhooks">
+    StackBlitz provides a public URL for testing webhooks:
+    
+    ```typescript title="server.ts"
+    import express from 'express';
+    import { AgentMailClient } from 'agentmail';
+
+    const app = express();
+    app.use(express.json());
+
+    app.post('/webhooks/agentmail', async (req, res) => {
+      const { event, data } = req.body;
+      console.log('Webhook received:', event, data);
+      res.json({ success: true });
+    });
+
+    app.listen(3000, () => {
+      console.log('Server running at https://[your-project].stackblitz.io');
+    });
+    ```
+  </Step>
+</Steps>
+
+### CodeSandbox
+
+CodeSandbox provides collaborative browser-based development with live preview.
+
+<Steps>
+  <Step title="Import Template">
+    <Card
+      title="Fork on CodeSandbox"
+      icon="fa-solid fa-code"
+      href="https://codesandbox.io/s/agentmail-starter"
+      target="_blank"
+    />
+  </Step>
+
+  <Step title="Collaborate in Real-Time">
+    Share your sandbox URL with teammates for live collaboration:
+    
+    - Multiple cursors show who's editing what
+    - Built-in chat and comments
+    - Instant synchronization
+    - Fork to create your own copy
+  </Step>
+
+  <Step title="Deploy Directly">
+    Deploy your sandbox to production with one click:
+    
+    1. Click "Deploy" in the top menu
+    2. Choose Vercel, Netlify, or other platforms
+    3. Configure environment variables
+    4. Your app is live!
+  </Step>
+</Steps>
+
+## Visual Editors
+
+### Replit
+
+Replit provides a full IDE with visual tools, AI assistance, and built-in deployment.
+
+<Steps>
+  <Step title="Create New Repl">
+    1. Visit [Replit](https://replit.com)
+    2. Click "Create Repl"
+    3. Choose "Node.js" template
+    4. Name it "agentmail-agent"
+  </Step>
+
+  <Step title="Install AgentMail">
+    In the Shell tab:
+    ```bash
+    npm install agentmail
+    ```
+  </Step>
+
+  <Step title="Connect Integration">
+    1. Click the "Integrations" tab in the left sidebar
+    2. Search for "AgentMail"
+    3. Click "Connect" and paste your API key
+    4. AgentMail is now configured!
+  </Step>
+
+  <Step title="Use AI Assistant">
+    Replit's AI can help you build faster:
+    
+    Press `Ctrl+K` (or `Cmd+K` on Mac) and ask:
+    - "Create a webhook handler for incoming emails"
+    - "Add automatic reply functionality"
+    - "Implement email sentiment analysis"
+    
+    The AI will generate code using AgentMail's API.
+  </Step>
+
+  <Step title="Visual Debugger">
+    Set breakpoints and inspect variables visually:
+    
+    1. Click line numbers to set breakpoints
+    2. Click "Debug" to start debugging
+    3. Step through code with visual controls
+    4. Inspect variables in the sidebar
+  </Step>
+
+  <Step title="Deploy with One Click">
+    Click "Deploy" in the top right to make your agent live:
+    
+    - Automatic HTTPS
+    - Environment variable management
+    - Custom domains available
+    - Auto-scaling included
+  </Step>
+</Steps>
+
+### Gitpod
+
+Cloud development environment with VS Code in the browser.
+
+<Steps>
+  <Step title="Open in Gitpod">
+    Prefix any GitHub repository URL with `gitpod.io/#`:
+    
+    ```
+    https://gitpod.io/#https://github.com/yourusername/your-repo
+    ```
+  </Step>
+
+  <Step title="Configure with .gitpod.yml">
+    ```yaml title=".gitpod.yml"
+    tasks:
+      - name: Install dependencies
+        init: npm install
+        command: npm run dev
+
+    ports:
+      - port: 3000
+        onOpen: open-preview
+        visibility: public
+
+    vscode:
+      extensions:
+        - esbenp.prettier-vscode
+        - dbaeumer.vscode-eslint
+    ```
+  </Step>
+
+  <Step title="Collaborate">
+    Share your workspace URL with teammates for live collaboration with VS Code features.
+  </Step>
+</Steps>
+
+## AI-Powered Development
+
+### GitHub Copilot
+
+AI pair programmer that suggests code as you type.
+
+<Steps>
+  <Step title="Install Copilot">
+    Install in VS Code, JetBrains IDEs, or Neovim:
+    
+    - VS Code: Install "GitHub Copilot" extension
+    - JetBrains: Install "GitHub Copilot" plugin
+    - Neovim: Use [copilot.vim](https://github.com/github/copilot.vim)
+  </Step>
+
+  <Step title="Use with AgentMail">
+    Write comments describing what you want, and Copilot suggests code:
+    
+    ```typescript
+    // Create an inbox and send a welcome email
+    // [Copilot will suggest the implementation]
+    
+    // Handle incoming email and reply with sentiment analysis
+    // [Copilot will suggest the implementation]
+    
+    // Process webhook events and update database
+    // [Copilot will suggest the implementation]
+    ```
+  </Step>
+
+  <Step title="Generate Tests">
+    Copilot can generate tests for your AgentMail code:
+    
+    ```typescript
+    // Test: should create inbox successfully
+    // [Copilot generates the test]
+    
+    // Test: should handle webhook signature validation
+    // [Copilot generates the test]
+    ```
+  </Step>
+</Steps>
+
+### Cursor
+
+AI-first code editor built on VS Code.
+
+<Steps>
+  <Step title="Install Cursor">
+    Download from [cursor.sh](https://cursor.sh) and open your project.
+  </Step>
+
+  <Step title="Chat with Your Codebase">
+    Press `Ctrl+L` to open the AI chat:
+    
+    - "How do I set up webhooks with AgentMail?"
+    - "Refactor this function to use async/await"
+    - "Add error handling to all API calls"
+    - "Write tests for the message handler"
+  </Step>
+
+  <Step title="Edit with AI">
+    Press `Ctrl+K` to edit code with AI:
+    
+    - Highlight code and ask to "add error handling"
+    - Ask to "convert to TypeScript"
+    - Ask to "optimize for performance"
+  </Step>
+
+  <Step title="Generate from Scratch">
+    Use Composer (Cmd+I) to generate entire features:
+    
+    "Create a complete email automation system with:
+    - Webhook handler for incoming emails
+    - Sentiment analysis
+    - Automatic categorization
+    - Smart replies based on context"
+  </Step>
+</Steps>
+
+### V0 by Vercel
+
+Generate UI components from text descriptions.
+
+<Steps>
+  <Step title="Access V0">
+    Visit [v0.dev](https://v0.dev) and sign in with GitHub.
+  </Step>
+
+  <Step title="Generate UI">
+    Describe the interface you need:
+    
+    "Create a dashboard showing:
+    - List of email inboxes
+    - Unread message counts
+    - Recent messages with preview
+    - Quick action buttons
+    Use shadcn/ui components and Tailwind CSS"
+  </Step>
+
+  <Step title="Copy and Customize">
+    V0 generates React components you can copy into your project:
+    
+    ```tsx
+    // Generated component
+    import { AgentMailClient } from 'agentmail';
+    
+    export function InboxDashboard() {
+      // Component code generated by V0
+      // Customize as needed
+    }
+    ```
+  </Step>
+
+  <Step title="Iterate">
+    Ask V0 to refine the design:
+    - "Make it more modern"
+    - "Add dark mode support"
+    - "Make it mobile responsive"
+  </Step>
+</Steps>
+
+## Live Preview Tools
+
+### Browser DevTools Integration
+
+Modern browsers provide powerful development tools.
+
+<Steps>
+  <Step title="Network Monitoring">
+    Open DevTools (F12) → Network tab to inspect API calls:
+    
+    - View request/response headers
+    - Inspect payload data
+    - Monitor timing and performance
+    - Test different scenarios
+  </Step>
+
+  <Step title="Console Debugging">
+    Use console methods for better debugging:
+    
+    ```typescript
+    // Structured logging
+    console.log('Message received:', {
+      messageId: data.messageId,
+      from: data.from,
+      subject: data.subject,
+    });
+
+    // Timing operations
+    console.time('reply-time');
+    await client.inboxes.messages.reply(inboxId, messageId, { text: 'Hello' });
+    console.timeEnd('reply-time');
+
+    // Conditional logging
+    console.assert(inbox.inboxId, 'Inbox ID should exist');
+    ```
+  </Step>
+
+  <Step title="Source Maps">
+    Enable source maps for debugging TypeScript:
+    
+    ```json title="tsconfig.json"
+    {
+      "compilerOptions": {
+        "sourceMap": true,
+        "inlineSourceMap": false,
+        "inlineSources": true
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+### Hot Module Replacement (HMR)
+
+See changes instantly without losing state.
+
+<Steps>
+  <Step title="Vite">
+    ```typescript title="vite.config.ts"
+    import { defineConfig } from 'vite';
+
+    export default defineConfig({
+      server: {
+        hmr: true,
+        watch: {
+          usePolling: true,
+        },
+      },
+    });
+    ```
+  </Step>
+
+  <Step title="Next.js">
+    HMR is enabled by default:
+    
+    ```bash
+    npm run dev
+    ```
+    
+    Edit files and see changes instantly at `http://localhost:3000`
+  </Step>
+
+  <Step title="Preserve State">
+    Use HMR APIs to preserve state during updates:
+    
+    ```typescript
+    if (import.meta.hot) {
+      import.meta.hot.accept((newModule) => {
+        // Preserve state during hot reload
+        console.log('Module updated');
+      });
+    }
+    ```
+  </Step>
+</Steps>
+
+## Testing in Browser
+
+### Playwright UI Mode
+
+Visual test runner with time-travel debugging.
+
+<Steps>
+  <Step title="Install Playwright">
+    ```bash
+    npm install -D @playwright/test
+    npx playwright install
+    ```
+  </Step>
+
+  <Step title="Run UI Mode">
+    ```bash
+    npx playwright test --ui
+    ```
+    
+    Features:
+    - Watch tests run in real-time
+    - Step through test execution
+    - View screenshots and traces
+    - Debug failures visually
+  </Step>
+
+  <Step title="Write Tests">
+    ```typescript title="tests/email-agent.spec.ts"
+    import { test, expect } from '@playwright/test';
+    import { AgentMailClient } from 'agentmail';
+
+    test('should send and receive email', async ({ page }) => {
+      const client = new AgentMailClient({
+        apiKey: process.env.AGENTMAIL_API_KEY,
+      });
+
+      const inbox = await client.inboxes.create();
+      
+      await client.inboxes.messages.send(inbox.inboxId, {
+        to: inbox.inboxId,
+        subject: 'Test',
+        text: 'Hello',
+      });
+
+      // Wait for email to appear in dashboard
+      await page.goto('http://localhost:3000/dashboard');
+      await expect(page.locator('[data-testid="inbox-count"]')).toHaveText('1');
+    });
+    ```
+  </Step>
+</Steps>
+
+## Browser-Based Email Clients
+
+### Temporary Email Testing
+
+Test email functionality without creating real inboxes.
+
+<Steps>
+  <Step title="Use AgentMail Playground">
+    The AgentMail Console includes a playground for testing:
+    
+    1. Visit [console.agentmail.to/playground](https://console.agentmail.to)
+    2. Create a test inbox
+    3. Send test emails
+    4. View received messages in real-time
+    5. Test webhook deliveries
+  </Step>
+
+  <Step title="Embed in Documentation">
+    ```html
+    <!-- Interactive example in your docs -->
+    <iframe
+      src="https://console.agentmail.to/embed/playground"
+      width="100%"
+      height="600px"
+      frameborder="0"
+    ></iframe>
+    ```
+  </Step>
+</Steps>
+
+## Local Development Dashboards
+
+### Build Your Own Dashboard
+
+Create a visual interface for development and testing.
+
+```typescript title="dashboard.tsx"
+import { useState, useEffect } from 'react';
+import { AgentMailClient } from 'agentmail';
+
+export function DevDashboard() {
+  const [inboxes, setInboxes] = useState([]);
+  const [messages, setMessages] = useState([]);
+  
+  const client = new AgentMailClient({
+    apiKey: process.env.AGENTMAIL_API_KEY,
+  });
+
+  useEffect(() => {
+    loadInboxes();
+  }, []);
+
+  async function loadInboxes() {
+    const result = await client.inboxes.list();
+    setInboxes(result.items);
+  }
+
+  async function loadMessages(inboxId: string) {
+    const result = await client.inboxes.threads.list(inboxId);
+    setMessages(result.items);
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-4 p-4">
+      {/* Inbox List */}
+      <div className="border rounded p-4">
+        <h2 className="text-xl font-bold mb-4">Inboxes</h2>
+        {inboxes.map((inbox) => (
+          <div
+            key={inbox.inboxId}
+            onClick={() => loadMessages(inbox.inboxId)}
+            className="p-2 hover:bg-gray-100 cursor-pointer rounded"
+          >
+            {inbox.inboxId}
+          </div>
+        ))}
+      </div>
+
+      {/* Message List */}
+      <div className="border rounded p-4 col-span-2">
+        <h2 className="text-xl font-bold mb-4">Messages</h2>
+        {messages.map((thread) => (
+          <div key={thread.threadId} className="p-3 border-b">
+            <div className="font-semibold">{thread.subject}</div>
+            <div className="text-sm text-gray-600">
+              {thread.messageCount} messages
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Environment-Specific Keys">
+    Never use production API keys in development. Create separate keys for:
+    - Local development
+    - Testing/CI
+    - Staging
+    - Production
+  </Step>
+
+  <Step title="Enable Hot Reload">
+    Configure your dev server for instant feedback without manual refreshes.
+  </Step>
+
+  <Step title="Leverage AI Assistants">
+    Use AI tools to:
+    - Generate boilerplate code
+    - Write tests
+    - Debug issues
+    - Refactor code
+  </Step>
+
+  <Step title="Monitor Network Traffic">
+    Keep DevTools open to inspect API requests and responses in real-time.
+  </Step>
+
+  <Step title="Use Visual Debugging">
+    Take advantage of visual debuggers in modern IDEs rather than console.log.
+  </Step>
+</Steps>
+
+## Interactive Examples
+
+### CodePen Example
+
+<iframe
+  height="500"
+  style={{ width: '100%' }}
+  scrolling="no"
+  title="AgentMail Quick Start"
+  src="https://codepen.io/agentmail/embed/example"
+  frameBorder="no"
+  loading="lazy"
+  allowTransparency={true}
+  allowFullScreen={true}
+>
+  See the Pen on CodePen
+</iframe>
+
+### JSFiddle Example
+
+<iframe
+  width="100%"
+  height="500"
+  src="https://jsfiddle.net/agentmail/example/embedded/js,result/"
+  allowFullScreen={true}
+  frameBorder="0"
+></iframe>
+
+## Resources
+
+<CardGroup>
+  <Card title="StackBlitz" href="https://stackblitz.com" icon="fa-solid fa-bolt">
+    Instant dev environment with WebContainers
+  </Card>
+  <Card title="CodeSandbox" href="https://codesandbox.io" icon="fa-solid fa-code">
+    Collaborative online IDE
+  </Card>
+  <Card title="Replit" href="https://replit.com" icon="fa-solid fa-laptop-code">
+    Full IDE with AI assistance and deployment
+  </Card>
+  <Card title="Cursor" href="https://cursor.sh" icon="fa-solid fa-magic">
+    AI-first code editor
+  </Card>
+  <Card title="V0" href="https://v0.dev" icon="fa-solid fa-wand-magic-sparkles">
+    Generate UI from text descriptions
+  </Card>
+  <Card title="GitHub Copilot" href="https://github.com/features/copilot" icon="fa-brands fa-github">
+    AI pair programmer
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup>
+  <Card title="Quickstart" icon="fa-solid fa-bolt" href="/get-started/quickstart">
+    Create your first inbox with AgentMail
+  </Card>
+  <Card title="Examples" icon="fa-solid fa-code" href="/examples/auto-reply-agent">
+    Explore example applications
+  </Card>
+  <Card title="API Reference" icon="fa-solid fa-book" href="/api-reference">
+    Full API documentation
+  </Card>
+  <Card title="Deployment" icon="fa-solid fa-rocket" href="/guides/deployment">
+    Deploy your application to production
+  </Card>
+</CardGroup>

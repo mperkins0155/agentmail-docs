@@ -134,6 +134,18 @@ navigation:
           - page: Sending & Receiving Email
             icon: fa-solid fa-right-left
             path: pages/guides/sending-receiving-email.mdx
+          - page: Interactive Development
+            icon: fa-solid fa-laptop-code
+            path: pages/guides/interactive-development.mdx
+          - page: Template Library
+            icon: fa-solid fa-layer-group
+            path: pages/guides/templates.mdx
+          - page: Deployment
+            icon: fa-solid fa-rocket
+            path: pages/guides/deployment.mdx
+          - page: CI/CD & Pull Requests
+            icon: fa-solid fa-gears
+            path: pages/guides/cicd.mdx
           # - page: Semantic Search
           #   path: pages/guides/semantic-search.mdx
           # - page: Automatic Labeling
@@ -176,6 +188,9 @@ navigation:
           - page: Idempotency
             icon: fa-solid fa-repeat
             path: pages/best-practices/idempotency.mdx
+          - page: Testing
+            icon: fa-solid fa-vial
+            path: pages/best-practices/testing.mdx
       # - section: Agents
       #   contents:
       #     - page: Overview
