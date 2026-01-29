@@ -1,0 +1,725 @@
+---
+title: Deployment Guide
+subtitle: Deploy your AgentMail applications to production
+slug: guides/deployment
+description: Learn how to deploy your AgentMail-powered applications to various cloud platforms and environments.
+---
+
+## Overview
+
+This guide covers deploying AgentMail applications to production environments across various platforms. Whether you're deploying to serverless functions, containers, or traditional servers, we'll help you get your email agents running reliably.
+
+## Deployment Platforms
+
+### Vercel
+
+Deploy your AgentMail application to Vercel with serverless functions.
+
+<Steps>
+  <Step title="Install Vercel CLI">
+    ```bash
+    npm install -g vercel
+    ```
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Add your AgentMail API key to your Vercel project settings or `.env.local` file:
+    ```bash
+    AGENTMAIL_API_KEY=your_api_key_here
+    ```
+  </Step>
+
+  <Step title="Create API Route">
+    Create a webhook handler at `pages/api/webhooks/agentmail.ts`:
+    
+    ```typescript
+    import type { NextApiRequest, NextApiResponse } from 'next';
+    import { AgentMailClient } from 'agentmail';
+
+    const client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_API_KEY,
+    });
+
+    export default async function handler(
+      req: NextApiRequest,
+      res: NextApiResponse
+    ) {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+
+      const { event, data } = req.body;
+
+      try {
+        if (event === 'message.received') {
+          // Handle incoming message
+          await client.inboxes.messages.reply(data.inboxId, data.messageId, {
+            text: 'Thanks for your message!',
+          });
+        }
+
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error('Error handling webhook:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    vercel --prod
+    ```
+    
+    After deployment, configure your webhook URL in the AgentMail console:
+    ```
+    https://your-app.vercel.app/api/webhooks/agentmail
+    ```
+  </Step>
+</Steps>
+
+### AWS Lambda
+
+Deploy AgentMail agents as serverless functions on AWS Lambda.
+
+<Steps>
+  <Step title="Install Serverless Framework">
+    ```bash
+    npm install -g serverless
+    npm install --save-dev serverless-plugin-typescript
+    ```
+  </Step>
+
+  <Step title="Create serverless.yml">
+    ```yaml title="serverless.yml"
+    service: agentmail-agent
+
+    provider:
+      name: aws
+      runtime: nodejs18.x
+      region: us-east-1
+      environment:
+        AGENTMAIL_API_KEY: ${env:AGENTMAIL_API_KEY}
+
+    functions:
+      webhook:
+        handler: handler.webhook
+        events:
+          - http:
+              path: webhooks/agentmail
+              method: post
+              cors: true
+
+    plugins:
+      - serverless-plugin-typescript
+    ```
+  </Step>
+
+  <Step title="Create Handler">
+    ```typescript title="handler.ts"
+    import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+    import { AgentMailClient } from 'agentmail';
+
+    const client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_API_KEY,
+    });
+
+    export const webhook = async (
+      event: APIGatewayProxyEvent
+    ): Promise<APIGatewayProxyResult> => {
+      try {
+        const body = JSON.parse(event.body || '{}');
+        const { event: webhookEvent, data } = body;
+
+        if (webhookEvent === 'message.received') {
+          await client.inboxes.messages.reply(data.inboxId, data.messageId, {
+            text: 'Thanks for your message!',
+          });
+        }
+
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true }),
+        };
+      } catch (error) {
+        console.error('Error:', error);
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Internal server error' }),
+        };
+      }
+    };
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    serverless deploy
+    ```
+    
+    The deployment output will show your API endpoint URL. Use this as your webhook URL in AgentMail.
+  </Step>
+</Steps>
+
+### Google Cloud Functions
+
+Deploy to Google Cloud Functions for serverless execution.
+
+<Steps>
+  <Step title="Install Google Cloud SDK">
+    Follow the [official installation guide](https://cloud.google.com/sdk/docs/install).
+  </Step>
+
+  <Step title="Create Function">
+    ```typescript title="index.ts"
+    import { HttpFunction } from '@google-cloud/functions-framework';
+    import { AgentMailClient } from 'agentmail';
+
+    const client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_API_KEY,
+    });
+
+    export const agentmailWebhook: HttpFunction = async (req, res) => {
+      if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+      }
+
+      try {
+        const { event, data } = req.body;
+
+        if (event === 'message.received') {
+          await client.inboxes.messages.reply(data.inboxId, data.messageId, {
+            text: 'Thanks for your message!',
+          });
+        }
+
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    };
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    gcloud functions deploy agentmailWebhook \
+      --runtime nodejs18 \
+      --trigger-http \
+      --allow-unauthenticated \
+      --set-env-vars AGENTMAIL_API_KEY=your_api_key_here
+    ```
+  </Step>
+</Steps>
+
+### Heroku
+
+Deploy your AgentMail application to Heroku.
+
+<Steps>
+  <Step title="Install Heroku CLI">
+    ```bash
+    npm install -g heroku
+    ```
+  </Step>
+
+  <Step title="Create Heroku App">
+    ```bash
+    heroku create your-app-name
+    ```
+  </Step>
+
+  <Step title="Set Environment Variables">
+    ```bash
+    heroku config:set AGENTMAIL_API_KEY=your_api_key_here
+    ```
+  </Step>
+
+  <Step title="Create Application">
+    ```typescript title="src/index.ts"
+    import express from 'express';
+    import { AgentMailClient } from 'agentmail';
+
+    const app = express();
+    app.use(express.json());
+
+    const client = new AgentMailClient({
+      apiKey: process.env.AGENTMAIL_API_KEY,
+    });
+
+    app.post('/webhooks/agentmail', async (req, res) => {
+      try {
+        const { event, data } = req.body;
+
+        if (event === 'message.received') {
+          await client.inboxes.messages.reply(data.inboxId, data.messageId, {
+            text: 'Thanks for your message!',
+          });
+        }
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+    ```
+  </Step>
+
+  <Step title="Create Procfile">
+    ```text title="Procfile"
+    web: node dist/index.js
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    git push heroku main
+    ```
+  </Step>
+</Steps>
+
+### Docker
+
+Containerize your AgentMail application for deployment anywhere.
+
+<Steps>
+  <Step title="Create Dockerfile">
+    ```dockerfile title="Dockerfile"
+    FROM node:18-alpine
+
+    WORKDIR /app
+
+    # Copy package files
+    COPY package*.json ./
+
+    # Install dependencies
+    RUN npm ci --only=production
+
+    # Copy application code
+    COPY . .
+
+    # Build TypeScript
+    RUN npm run build
+
+    # Expose port
+    EXPOSE 3000
+
+    # Start application
+    CMD ["node", "dist/index.js"]
+    ```
+  </Step>
+
+  <Step title="Create .dockerignore">
+    ```text title=".dockerignore"
+    node_modules
+    npm-debug.log
+    .env
+    .git
+    .gitignore
+    README.md
+    ```
+  </Step>
+
+  <Step title="Build and Run">
+    ```bash
+    # Build image
+    docker build -t agentmail-agent .
+
+    # Run container
+    docker run -d \
+      -p 3000:3000 \
+      -e AGENTMAIL_API_KEY=your_api_key_here \
+      agentmail-agent
+    ```
+  </Step>
+
+  <Step title="Deploy to Cloud">
+    Push to Docker Hub or your preferred container registry:
+    
+    ```bash
+    # Tag image
+    docker tag agentmail-agent username/agentmail-agent:latest
+
+    # Push to registry
+    docker push username/agentmail-agent:latest
+    ```
+  </Step>
+</Steps>
+
+### Railway
+
+Deploy to Railway for simple, automatic deployments.
+
+<Steps>
+  <Step title="Install Railway CLI">
+    ```bash
+    npm install -g @railway/cli
+    ```
+  </Step>
+
+  <Step title="Initialize Project">
+    ```bash
+    railway init
+    ```
+  </Step>
+
+  <Step title="Set Environment Variables">
+    ```bash
+    railway variables set AGENTMAIL_API_KEY=your_api_key_here
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    railway up
+    ```
+    
+    Railway will automatically detect your application type and deploy it.
+  </Step>
+</Steps>
+
+### Replit
+
+Deploy directly from Replit's built-in deployment features.
+
+<Steps>
+  <Step title="Connect AgentMail Integration">
+    In Replit, navigate to the Integrations tab and connect AgentMail with your API key.
+  </Step>
+
+  <Step title="Configure Deployment">
+    Replit automatically deploys your app. Ensure your webhook endpoint is accessible:
+    
+    ```typescript title="index.ts"
+    import express from 'express';
+    import { AgentMailClient } from 'agentmail';
+
+    const app = express();
+    app.use(express.json());
+
+    const client = new AgentMailClient();
+
+    app.post('/webhooks/agentmail', async (req, res) => {
+      const { event, data } = req.body;
+      
+      if (event === 'message.received') {
+        await client.inboxes.messages.reply(data.inboxId, data.messageId, {
+          text: 'Thanks for your message!',
+        });
+      }
+      
+      res.json({ success: true });
+    });
+
+    app.listen(3000);
+    ```
+  </Step>
+
+  <Step title="Access Deployment">
+    Your app will be available at `https://your-repl-name.repl.co`
+  </Step>
+</Steps>
+
+## Python Deployments
+
+### Flask on AWS Elastic Beanstalk
+
+<Steps>
+  <Step title="Install EB CLI">
+    ```bash
+    pip install awsebcli
+    ```
+  </Step>
+
+  <Step title="Create Application">
+    ```python title="application.py"
+    from flask import Flask, request, jsonify
+    from agentmail import AgentMail
+    import os
+
+    application = Flask(__name__)
+    client = AgentMail(api_key=os.getenv('AGENTMAIL_API_KEY'))
+
+    @application.route('/webhooks/agentmail', methods=['POST'])
+    def webhook():
+        data = request.get_json()
+        event = data.get('event')
+        event_data = data.get('data')
+        
+        if event == 'message.received':
+            client.inboxes.messages.reply(
+                inbox_id=event_data['inboxId'],
+                message_id=event_data['messageId'],
+                text='Thanks for your message!'
+            )
+        
+        return jsonify({'success': True})
+
+    if __name__ == '__main__':
+        application.run()
+    ```
+  </Step>
+
+  <Step title="Create requirements.txt">
+    ```text title="requirements.txt"
+    Flask==2.3.0
+    agentmail==1.0.0
+    gunicorn==21.0.0
+    ```
+  </Step>
+
+  <Step title="Initialize and Deploy">
+    ```bash
+    eb init -p python-3.11 agentmail-agent
+    eb create agentmail-agent-env
+    eb setenv AGENTMAIL_API_KEY=your_api_key_here
+    eb deploy
+    ```
+  </Step>
+</Steps>
+
+## Environment Variables
+
+Always store sensitive information like API keys in environment variables.
+
+### Best Practices
+
+<CardGroup>
+  <Card title="Never Commit Secrets" icon="fa-solid fa-shield-halved">
+    Never commit API keys or secrets to version control. Use `.env` files and add them to `.gitignore`.
+  </Card>
+  
+  <Card title="Use Platform Secrets" icon="fa-solid fa-key">
+    Use your platform's secret management (Vercel Secrets, AWS Secrets Manager, etc.).
+  </Card>
+  
+  <Card title="Rotate Keys Regularly" icon="fa-solid fa-rotate">
+    Regularly rotate API keys and update them in your deployment platform.
+  </Card>
+  
+  <Card title="Use Different Keys" icon="fa-solid fa-layer-group">
+    Use separate API keys for development, staging, and production environments.
+  </Card>
+</CardGroup>
+
+## Health Checks
+
+Implement health check endpoints for monitoring.
+
+```typescript title="TypeScript"
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+```
+
+```python title="Python"
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+    })
+```
+
+## Monitoring & Logging
+
+### Application Monitoring
+
+<Steps>
+  <Step title="Sentry">
+    Add error tracking with Sentry:
+    
+    ```typescript
+    import * as Sentry from '@sentry/node';
+
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV,
+    });
+    ```
+  </Step>
+
+  <Step title="Logging">
+    Implement structured logging:
+    
+    ```typescript
+    import winston from 'winston';
+
+    const logger = winston.createLogger({
+      level: 'info',
+      format: winston.format.json(),
+      transports: [
+        new winston.transports.Console(),
+      ],
+    });
+
+    logger.info('Message received', {
+      inboxId: data.inboxId,
+      messageId: data.messageId,
+    });
+    ```
+  </Step>
+
+  <Step title="Metrics">
+    Track key metrics:
+    
+    ```typescript
+    import { Counter, Histogram } from 'prom-client';
+
+    const messageCounter = new Counter({
+      name: 'agentmail_messages_total',
+      help: 'Total number of messages processed',
+    });
+
+    const responseTime = new Histogram({
+      name: 'agentmail_response_duration_seconds',
+      help: 'Response time in seconds',
+    });
+    ```
+  </Step>
+</Steps>
+
+## Scaling Considerations
+
+<Steps>
+  <Step title="Webhooks at Scale">
+    Use message queues (SQS, RabbitMQ) to handle high webhook volumes:
+    
+    ```typescript
+    // Webhook handler pushes to queue
+    app.post('/webhooks/agentmail', async (req, res) => {
+      await queue.push(req.body);
+      res.status(200).json({ success: true });
+    });
+
+    // Worker processes queue
+    queue.process(async (job) => {
+      const { event, data } = job.data;
+      // Handle event
+    });
+    ```
+  </Step>
+
+  <Step title="Rate Limiting">
+    Implement rate limiting to protect your application:
+    
+    ```typescript
+    import rateLimit from 'express-rate-limit';
+
+    const limiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // limit each IP to 100 requests per windowMs
+    });
+
+    app.use('/api/', limiter);
+    ```
+  </Step>
+
+  <Step title="Caching">
+    Cache frequently accessed data:
+    
+    ```typescript
+    import Redis from 'ioredis';
+
+    const redis = new Redis(process.env.REDIS_URL);
+
+    async function getInbox(inboxId: string) {
+      const cached = await redis.get(`inbox:${inboxId}`);
+      if (cached) return JSON.parse(cached);
+
+      const inbox = await client.inboxes.get(inboxId);
+      await redis.setex(`inbox:${inboxId}`, 3600, JSON.stringify(inbox));
+      
+      return inbox;
+    }
+    ```
+  </Step>
+</Steps>
+
+## Security
+
+<Steps>
+  <Step title="Verify Webhook Signatures">
+    Always verify webhook signatures to ensure requests are from AgentMail:
+    
+    ```typescript
+    import crypto from 'crypto';
+
+    function verifySignature(payload: string, signature: string, secret: string): boolean {
+      const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex');
+      
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
+      );
+    }
+    ```
+  </Step>
+
+  <Step title="Use HTTPS">
+    Always use HTTPS in production. Most platforms enable this by default.
+  </Step>
+
+  <Step title="Implement CORS">
+    Configure CORS properly if you have a frontend:
+    
+    ```typescript
+    import cors from 'cors';
+
+    app.use(cors({
+      origin: process.env.ALLOWED_ORIGINS?.split(',') || [],
+      credentials: true,
+    }));
+    ```
+  </Step>
+</Steps>
+
+## Deployment Checklist
+
+Before deploying to production:
+
+- [ ] Environment variables are configured
+- [ ] API keys are stored securely
+- [ ] Webhook signatures are verified
+- [ ] HTTPS is enabled
+- [ ] Health checks are implemented
+- [ ] Logging and monitoring are set up
+- [ ] Error handling is comprehensive
+- [ ] Rate limiting is configured
+- [ ] Database connections use connection pooling
+- [ ] Secrets are not committed to version control
+- [ ] CI/CD pipeline is configured
+- [ ] Backup and recovery procedures are in place
+
+## Next Steps
+
+<CardGroup>
+  <Card title="CI/CD Guide" icon="fa-solid fa-gears" href="/guides/cicd">
+    Set up continuous integration and deployment
+  </Card>
+  <Card title="Testing Guide" icon="fa-solid fa-vial" href="/best-practices/testing">
+    Write comprehensive tests for your application
+  </Card>
+  <Card title="Webhooks Setup" icon="fa-solid fa-webhook" href="/webhooks/webhook-setup">
+    Configure webhooks for real-time events
+  </Card>
+  <Card title="API Reference" icon="fa-solid fa-code" href="/api-reference">
+    Explore the full API reference
+  </Card>
+</CardGroup>

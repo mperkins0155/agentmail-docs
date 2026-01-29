@@ -1,0 +1,780 @@
+---
+title: CI/CD & Pull Request Workflow
+subtitle: Automate testing, deployment, and collaboration
+slug: guides/cicd
+description: Set up continuous integration, continuous deployment, and effective pull request workflows for your AgentMail projects.
+---
+
+## Overview
+
+Implementing CI/CD pipelines and proper pull request workflows ensures code quality, automates deployments, and facilitates team collaboration. This guide covers setting up automated testing, deployment, and best practices for working with remote repositories.
+
+## Pull Request Workflow
+
+### Creating Pull Requests
+
+Always work on feature branches and create pull requests for code review.
+
+<Steps>
+  <Step title="Create Feature Branch">
+    ```bash
+    # Create and switch to a new feature branch
+    git checkout -b feature/add-email-automation
+    ```
+  </Step>
+
+  <Step title="Make Changes and Commit">
+    ```bash
+    # Stage your changes
+    git add .
+
+    # Commit with a descriptive message
+    git commit -m 'feat: add automated email response handler'
+    ```
+  </Step>
+
+  <Step title="Push to Remote">
+    ```bash
+    # Push your branch to the remote repository
+    git push origin feature/add-email-automation
+    ```
+  </Step>
+
+  <Step title="Create Pull Request">
+    Using GitHub CLI:
+    ```bash
+    # Create a pull request
+    gh pr create \
+      --title "Add automated email response handler" \
+      --body "This PR adds automated responses for incoming emails with sentiment analysis" \
+      --base main \
+      --head feature/add-email-automation
+    ```
+    
+    Or manually create the PR on GitHub, GitLab, or Bitbucket.
+  </Step>
+</Steps>
+
+### Pull Request Best Practices
+
+<CardGroup>
+  <Card title="Keep PRs Small" icon="fa-solid fa-compress">
+    Smaller PRs are easier to review and less likely to introduce bugs.
+  </Card>
+  
+  <Card title="Write Clear Descriptions" icon="fa-solid fa-pen">
+    Explain what changes were made and why. Include screenshots or examples if helpful.
+  </Card>
+  
+  <Card title="Reference Issues" icon="fa-solid fa-link">
+    Link related issues using keywords like "Closes #123" or "Fixes #456".
+  </Card>
+  
+  <Card title="Request Reviews" icon="fa-solid fa-users">
+    Tag team members for code review and address their feedback promptly.
+  </Card>
+</CardGroup>
+
+### Pull Request Templates
+
+Create a PR template to ensure consistency.
+
+```markdown title=".github/pull_request_template.md"
+## Description
+<!-- Describe your changes in detail -->
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+<!-- Describe the tests you ran -->
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Manual testing completed
+
+## Checklist
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Comments added for complex code
+- [ ] Documentation updated
+- [ ] No new warnings generated
+- [ ] Tests added/updated
+- [ ] All tests passing
+
+## Related Issues
+<!-- Link to related issues: Closes #123 -->
+
+## Screenshots (if applicable)
+<!-- Add screenshots to help explain your changes -->
+```
+
+## Continuous Integration
+
+### GitHub Actions
+
+Set up automated testing and linting with GitHub Actions.
+
+```yaml title=".github/workflows/ci.yml"
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run type check
+        run: npm run type-check
+
+      - name: Run tests
+        run: npm test
+        env:
+          AGENTMAIL_TEST_API_KEY: ${{ secrets.AGENTMAIL_TEST_API_KEY }}
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: dist/
+```
+
+### Python CI with GitHub Actions
+
+```yaml title=".github/workflows/python-ci.yml"
+name: Python CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linter
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          black --check .
+
+      - name: Run type checker
+        run: mypy .
+
+      - name: Run tests
+        run: pytest --cov=. --cov-report=xml
+        env:
+          AGENTMAIL_TEST_API_KEY: ${{ secrets.AGENTMAIL_TEST_API_KEY }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+```
+
+### GitLab CI
+
+```yaml title=".gitlab-ci.yml"
+image: node:18
+
+stages:
+  - test
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+test:
+  stage: test
+  script:
+    - npm ci
+    - npm run lint
+    - npm run type-check
+    - npm test
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+
+build:
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+  only:
+    - main
+    - develop
+
+deploy:
+  stage: deploy
+  script:
+    - npm run deploy
+  only:
+    - main
+  environment:
+    name: production
+```
+
+## Continuous Deployment
+
+### Auto-Deploy to Vercel
+
+```yaml title=".github/workflows/deploy-vercel.yml"
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          AGENTMAIL_API_KEY: ${{ secrets.AGENTMAIL_API_KEY }}
+```
+
+### Auto-Deploy to AWS Lambda
+
+```yaml title=".github/workflows/deploy-lambda.yml"
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Serverless Framework
+        run: npm install -g serverless
+
+      - name: Deploy to AWS Lambda
+        run: serverless deploy
+        env:
+          AGENTMAIL_API_KEY: ${{ secrets.AGENTMAIL_API_KEY }}
+```
+
+### Auto-Deploy to Heroku
+
+```yaml title=".github/workflows/deploy-heroku.yml"
+name: Deploy to Heroku
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          env_file: .env.production
+```
+
+## Branch Protection Rules
+
+Configure branch protection to ensure code quality.
+
+### GitHub Branch Protection
+
+1. Navigate to Settings → Branches → Branch protection rules
+2. Add rule for `main` branch
+3. Enable the following:
+   - ✅ Require pull request reviews before merging
+   - ✅ Require status checks to pass before merging
+     - Select: `test`, `build`, `lint`
+   - ✅ Require branches to be up to date before merging
+   - ✅ Require conversation resolution before merging
+   - ✅ Include administrators
+
+```yaml title=".github/settings.yml"
+# Using Probot Settings app
+branches:
+  - name: main
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+      required_status_checks:
+        strict: true
+        contexts:
+          - test
+          - build
+          - lint
+      enforce_admins: true
+      restrictions: null
+```
+
+## Semantic Versioning & Release Automation
+
+### Semantic Release
+
+Automate versioning and changelog generation.
+
+```bash
+npm install --save-dev semantic-release @semantic-release/git @semantic-release/changelog
+```
+
+```json title=".releaserc.json"
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    "@semantic-release/npm",
+    "@semantic-release/git",
+    "@semantic-release/github"
+  ]
+}
+```
+
+```yaml title=".github/workflows/release.yml"
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run semantic-release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+### Conventional Commits
+
+Use conventional commits for automated versioning:
+
+```bash
+# Features (minor version bump)
+git commit -m "feat: add automatic email labeling"
+
+# Fixes (patch version bump)
+git commit -m "fix: resolve webhook signature validation"
+
+# Breaking changes (major version bump)
+git commit -m "feat!: redesign inbox API structure"
+
+# Other types
+git commit -m "docs: update deployment guide"
+git commit -m "refactor: simplify message handler logic"
+git commit -m "test: add integration tests for webhooks"
+git commit -m "chore: update dependencies"
+```
+
+## Code Quality Checks
+
+### ESLint Configuration
+
+```json title=".eslintrc.json"
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "no-console": "warn",
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/explicit-function-return-type": "warn"
+  }
+}
+```
+
+### Prettier Configuration
+
+```json title=".prettierrc"
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2
+}
+```
+
+### Pre-commit Hooks
+
+Use Husky and lint-staged for pre-commit checks.
+
+```bash
+npm install --save-dev husky lint-staged
+npx husky init
+```
+
+```json title="package.json"
+{
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write",
+      "npm test -- --findRelatedTests"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+```bash title=".husky/pre-commit"
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+npx lint-staged
+```
+
+## Environment Management
+
+### Multiple Environments
+
+Manage different configurations for dev, staging, and production.
+
+```bash title=".env.development"
+AGENTMAIL_API_KEY=dev_key_here
+WEBHOOK_URL=https://dev.example.com/webhooks
+LOG_LEVEL=debug
+```
+
+```bash title=".env.staging"
+AGENTMAIL_API_KEY=staging_key_here
+WEBHOOK_URL=https://staging.example.com/webhooks
+LOG_LEVEL=info
+```
+
+```bash title=".env.production"
+AGENTMAIL_API_KEY=prod_key_here
+WEBHOOK_URL=https://example.com/webhooks
+LOG_LEVEL=error
+```
+
+### Environment-Specific Deployments
+
+```yaml title=".github/workflows/deploy-environments.yml"
+name: Deploy to Environments
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+      - main
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/staging" ]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to ${{ steps.env.outputs.environment }}
+        run: |
+          echo "Deploying to ${{ steps.env.outputs.environment }}"
+          npm run deploy:${{ steps.env.outputs.environment }}
+```
+
+## Monitoring Deployments
+
+### Deployment Notifications
+
+Get notified when deployments complete.
+
+```yaml title=".github/workflows/deploy-notify.yml"
+name: Deploy with Notifications
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy
+        run: npm run deploy
+
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ Deployment successful!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Deployment to production completed successfully!\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "❌ Deployment failed!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Deployment to production failed!\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Keep CI Fast">
+    Optimize your CI pipeline to run quickly. Use caching, parallelize jobs, and only run necessary checks.
+  </Step>
+
+  <Step title="Fail Fast">
+    Run quick checks (linting, type-checking) before expensive tests to catch issues early.
+  </Step>
+
+  <Step title="Test on Multiple Environments">
+    Test on different Node.js/Python versions and operating systems to catch compatibility issues.
+  </Step>
+
+  <Step title="Use Secrets Securely">
+    Never commit secrets. Use your platform's secret management and rotate keys regularly.
+  </Step>
+
+  <Step title="Monitor Build Times">
+    Track CI/CD execution times and optimize slow steps.
+  </Step>
+
+  <Step title="Automate Everything">
+    Automate testing, deployment, versioning, and notifications to reduce manual errors.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordion title="Build Fails on CI but Works Locally">
+  - Check that all dependencies are in `package.json` or `requirements.txt`
+  - Ensure environment variables are properly set in CI
+  - Verify Node.js/Python versions match between local and CI
+  - Clear cache and retry: `npm ci --cache ~/.npm`
+</Accordion>
+
+<Accordion title="Tests Pass Locally but Fail on CI">
+  - Check for timezone differences (use UTC in tests)
+  - Look for file system case sensitivity issues
+  - Verify that test fixtures and data are committed
+  - Check for race conditions in async tests
+</Accordion>
+
+<Accordion title="Deployments Fail Silently">
+  - Add verbose logging to deployment scripts
+  - Check platform-specific logs (Vercel, Heroku, AWS CloudWatch)
+  - Verify API keys and credentials are correctly set
+  - Test deployment process manually first
+</Accordion>
+
+## Next Steps
+
+<CardGroup>
+  <Card title="Testing Guide" icon="fa-solid fa-vial" href="/best-practices/testing">
+    Write comprehensive tests for your applications
+  </Card>
+  <Card title="Deployment Guide" icon="fa-solid fa-rocket" href="/guides/deployment">
+    Learn how to deploy to various platforms
+  </Card>
+  <Card title="Webhooks Setup" icon="fa-solid fa-webhook" href="/webhooks/webhook-setup">
+    Configure webhooks for real-time events
+  </Card>
+  <Card title="Best Practices" icon="fa-solid fa-star" href="/best-practices/idempotency">
+    Follow AgentMail best practices
+  </Card>
+</CardGroup>
