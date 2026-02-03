@@ -138,6 +138,9 @@ types:
       subject: optional<DraftSubject>
       text: optional<DraftText>
       html: optional<DraftHtml>
+      attachments:
+        type: optional<list<attachments.SendAttachment>>
+        docs: Attachments to include in draft.
       in_reply_to: optional<DraftInReplyTo>
       send_at: optional<DraftSendAt>
       client_id: optional<DraftClientId>
@@ -183,5 +186,16 @@ service:
       path-parameters:
         draft_id: DraftId
       response: Draft
+      errors:
+        - global.NotFoundError
+
+    getAttachment:
+      method: GET
+      path: /{draft_id}/attachments/{attachment_id}
+      display-name: Get Attachment
+      path-parameters:
+        draft_id: DraftId
+        attachment_id: attachments.AttachmentId
+      response: attachments.AttachmentResponse
       errors:
         - global.NotFoundError

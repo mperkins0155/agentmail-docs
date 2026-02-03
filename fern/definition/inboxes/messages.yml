@@ -49,7 +49,7 @@ service:
       path-parameters:
         message_id: messages.MessageId
         attachment_id: attachments.AttachmentId
-      response: file
+      response: attachments.AttachmentResponse
       errors:
         - global.NotFoundError
 
@@ -94,6 +94,19 @@ service:
       path-parameters:
         message_id: messages.MessageId
       request: messages.ReplyAllMessageRequest
+      response: messages.SendMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - messages.MessageRejectedError
+
+    forward:
+      method: POST
+      path: /{message_id}/forward
+      display-name: Forward Message
+      path-parameters:
+        message_id: messages.MessageId
+      request: messages.SendMessageRequest
       response: messages.SendMessageResponse
       errors:
         - global.ValidationError
