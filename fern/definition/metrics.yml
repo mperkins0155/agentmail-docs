@@ -5,69 +5,104 @@ imports:
   inboxes: inboxes/__package__.yml
 
 types:
+  # Mirrors EventType in events.yml (the API validates both against the same
+  # EventTypeSchema) — keep the two lists in sync.
   MetricEventType:
     enum:
+      - name: MESSAGE_RECEIVED
+        value: message.received
+      - name: MESSAGE_RECEIVED_SPAM
+        value: message.received.spam
+      - name: MESSAGE_RECEIVED_BLOCKED
+        value: message.received.blocked
+      - name: MESSAGE_RECEIVED_UNAUTHENTICATED
+        value: message.received.unauthenticated
       - name: MESSAGE_SENT
         value: message.sent
       - name: MESSAGE_DELIVERED
         value: message.delivered
       - name: MESSAGE_BOUNCED
         value: message.bounced
-      - name: MESSAGE_DELAYED
-        value: message.delayed
-      - name: MESSAGE_REJECTED
-        value: message.rejected
       - name: MESSAGE_COMPLAINED
         value: message.complained
-      - name: MESSAGE_RECEIVED
-        value: message.received
+      - name: MESSAGE_REJECTED
+        value: message.rejected
+      - name: DOMAIN_VERIFIED
+        value: domain.verified
     docs: Type of metric event.
-
-  MetricTimestamp:
-    type: datetime
-    docs: Timestamp when the metric event occurred.
 
   MetricEventTypes:
     type: list<MetricEventType>
-    docs: List of metric event types to filter by.
+    docs: List of metric event types to query.
 
-  MetricStartTimestamp:
+  Start:
     type: datetime
-    docs: Start timestamp for the metrics query range.
+    docs: Start timestamp for the query.
 
-  MetricEndTimestamp:
+  End:
     type: datetime
-    docs: End timestamp for the metrics query range.
+    docs: End timestamp for the query.
 
-  MessageMetrics:
-    properties:
-      sent:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages were sent.
-      delivered:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages were delivered.
-      bounced:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages bounced.
-      delayed:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages were delayed.
-      rejected:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages were rejected.
-      complained:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages received complaints.
-      received:
-        type: optional<list<MetricTimestamp>>
-        docs: Timestamps when messages were received.
+  Period:
+    type: integer
+    docs: Size of each time bucket as a whole number of seconds, between 1 and 86400.
 
-  ListMetricsResponse:
+  MetricLimit:
+    type: integer
+    docs: Limit on number of buckets to return.
+
+  Descending:
+    type: boolean
+    docs: Sort in descending order.
+
+  MetricBucket:
     properties:
-      message:
-        type: optional<MessageMetrics>
-        docs: Message metrics grouped by event type.
+      timestamp:
+        type: datetime
+        docs: Timestamp of the bucket.
+      count:
+        type: integer
+        docs: Count of events in the bucket.
+
+  QueryMetricsResponse:
+    type: map<MetricEventType, list<MetricBucket>>
+    docs: Metrics grouped by event type.
+
+  UsageType:
+    enum:
+      - name: STORAGE_BYTES
+        value: storage_bytes
+      - name: MESSAGE_COUNT
+        value: message_count
+      - name: THREAD_COUNT
+        value: thread_count
+      - name: INBOX_COUNT
+        value: inbox_count
+      - name: POD_COUNT
+        value: pod_count
+      - name: DOMAIN_COUNT
+        value: domain_count
+    docs: |
+      Type of usage metric. Inbox-scoped queries carry `storage_bytes`,
+      `message_count`, and `thread_count`; pod-scoped queries add `inbox_count`
+      and `domain_count`; organization-scoped queries add `pod_count`.
+
+  UsageTypes:
+    type: list<UsageType>
+    docs: List of usage metric types to query. Omit to query every type valid for the scope.
+
+  UsagePoint:
+    properties:
+      timestamp:
+        type: datetime
+        docs: Timestamp of the point.
+      value:
+        type: long
+        docs: Cumulative value of the usage metric at the timestamp.
+
+  QueryUsageResponse:
+    type: map<UsageType, list<UsagePoint>>
+    docs: Cumulative usage series grouped by usage type.
 
 service:
   url: Http
@@ -75,16 +110,53 @@ service:
   auth: true
 
   endpoints:
-    list:
+    queryEvents:
       method: GET
-      path: ""
-      display-name: List Metrics
+      path: /events
+      display-name: Query Events
+      docs: |
+        Counts of email events (sent, delivered, bounced, etc.) over time for
+        the organization. Defaults to the last 24 hours; `start` must be within
+        the last 90 days, and a future `end` is clamped to now. Omit `period`
+        for individual event counts, or set it to sum counts into buckets of
+        that many seconds.
+
+        **CLI:**
+        ```bash
+        agentmail metrics list
+        ```
       request:
-        name: ListMetricsRequest
+        name: QueryEventsRequest
         query-parameters:
           event_types: optional<MetricEventTypes>
-          start_timestamp: MetricStartTimestamp
-          end_timestamp: MetricEndTimestamp
-      response: ListMetricsResponse
+          start: optional<Start>
+          end: optional<End>
+          period: optional<Period>
+          limit: optional<MetricLimit>
+          descending: optional<Descending>
+      response: QueryMetricsResponse
       errors:
-        - global.NotFoundError
+        - global.ValidationError
+
+    queryUsage:
+      method: GET
+      path: /usage
+      display-name: Query Usage
+      docs: |
+        Cumulative usage series for the organization. Each point is the running
+        total of the usage type at that timestamp, not the change within the
+        bucket. Defaults to the last 24 hours; `start` must be within the last
+        90 days, and a future `end` is clamped to now. The range divided by
+        `period` must not exceed 1000 buckets.
+      request:
+        name: QueryUsageRequest
+        query-parameters:
+          usage_types: optional<UsageTypes>
+          start: optional<Start>
+          end: optional<End>
+          period: optional<Period>
+          limit: optional<MetricLimit>
+          descending: optional<Descending>
+      response: QueryUsageResponse
+      errors:
+        - global.ValidationError

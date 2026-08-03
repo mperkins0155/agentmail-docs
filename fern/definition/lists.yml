@@ -1,0 +1,155 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: __package__.yml
+
+types:
+  Direction:
+    enum:
+      - send
+      - receive
+      - reply
+    docs: Direction of list entry.
+
+  ListType:
+    enum:
+      - allow
+      - block
+    docs: Type of list entry.
+
+  EntryType:
+    enum:
+      - email
+      - domain
+    docs: Whether the entry is an email address or domain.
+
+  ListEntryBase:
+    properties:
+      entry:
+        type: string
+        docs: Email address or domain of list entry.
+      organization_id: global.OrganizationId
+      reason:
+        type: optional<string>
+        docs: Reason for adding the entry.
+      direction: Direction
+      list_type: ListType
+      entry_type: EntryType
+      created_at:
+        type: datetime
+        docs: Time at which entry was created.
+      read_only:
+        type: optional<boolean>
+        docs: Whether the entry is read-only and cannot be deleted via the API.
+
+  ListEntry:
+    extends: ListEntryBase
+
+  PodListEntry:
+    extends: ListEntryBase
+    properties:
+      pod_id:
+        type: string
+        docs: ID of pod.
+      inbox_id:
+        type: optional<string>
+        docs: ID of inbox, if entry is inbox-scoped.
+
+  PodListListEntriesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      entries:
+        type: list<PodListEntry>
+        docs: Ordered by entry ascending.
+
+  ListListEntriesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      entries:
+        type: list<ListEntry>
+        docs: Ordered by entry ascending.
+
+  CreateListEntryRequest:
+    properties:
+      entry:
+        type: string
+        docs: Email address or domain to add.
+      reason:
+        type: optional<string>
+        docs: Reason for adding the entry.
+
+service:
+  url: Http
+  base-path: /lists/{direction}/{type}
+  path-parameters:
+    direction: Direction
+    type: ListType
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List Entries
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail lists list --direction <direction> --type <type>
+        ```
+      request:
+        name: ListListEntriesRequest
+        query-parameters:
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+      response: ListListEntriesResponse
+
+    get:
+      method: GET
+      path: /{entry}
+      display-name: Get List Entry
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail lists get --direction <direction> --type <type> --entry <entry>
+        ```
+      path-parameters:
+        entry:
+          type: string
+          docs: Email address or domain.
+      response: ListEntry
+      errors:
+        - global.NotFoundError
+
+    create:
+      method: POST
+      path: ""
+      display-name: Create List Entry
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail lists create --direction <direction> --type <type> --entry user@example.com
+        ```
+      request: CreateListEntryRequest
+      response: ListEntry
+      errors:
+        - global.ValidationError
+
+    delete:
+      method: DELETE
+      path: /{entry}
+      display-name: Delete List Entry
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail lists delete --direction <direction> --type <type> --entry <entry>
+        ```
+      path-parameters:
+        entry:
+          type: string
+          docs: Email address or domain.
+      errors:
+        - global.NotFoundError

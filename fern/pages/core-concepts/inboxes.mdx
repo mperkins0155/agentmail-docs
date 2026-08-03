@@ -117,11 +117,220 @@ console.log(`Total Inboxes: ${allInboxes.count}`);
 
 ```
 
+```bash title="CLI"
+# create an inbox
+agentmail inboxes create \
+  --username docs-testing \
+  --domain domain.com \
+  --display-name "Docs Tester"
+
+# get an inbox
+agentmail inboxes get --inbox-id my_name@domain.com
+
+# list all inboxes
+agentmail inboxes list
+```
+
 </CodeBlocks>
 
 <Tip>
   When creating an `Inbox`, the `username` and `domain` are optional. If you
   don't provide them, AgentMail will generate a unique address for you using our
-  default domain. Check out our [guide on managing
-  domains](/guides/domains/managing-domains) to learn more.
+  default domain. You can also set `domain` to one of your verified custom
+  domains, or to any subdomain of a domain with [subdomains
+  enabled](/custom-domains#setting-up-subdomains). Check out our [guide on managing
+  domains](/managing-domains).
 </Tip>
+
+## Metadata
+
+Attach your own key-value data to any `Inbox` with the `metadata` field. Use it to link an inbox to records in your own system: a user ID, an agent name, or feature flags. Metadata is returned on every inbox response.
+
+Values may be a string, number, or boolean. An `Inbox` can hold up to 256 keys, and each key and string value is limited to 256 characters.
+
+<CodeBlocks>
+
+```python title="Python"
+# Attach metadata when creating an inbox; values may be a string, int, float, or boolean
+inbox = client.inboxes.create(
+    username="support-agent",
+    metadata={
+        "tenant_id": "acme",       # string
+        "seat_count": 5,           # int
+        "monthly_spend": 19.99,    # float
+        "active": True,            # boolean
+    },
+)
+
+# Read it back from any inbox response
+print(inbox.metadata)
+```
+
+```typescript title="TypeScript"
+// Attach metadata when creating an inbox; values may be a string, int, float, or boolean
+const inbox = await client.inboxes.create({
+  username: "support-agent",
+  metadata: {
+    tenant_id: "acme", // string
+    seat_count: 5, // int
+    monthly_spend: 19.99, // float
+    active: true, // boolean
+  },
+});
+
+// Read it back from any inbox response
+console.log(inbox.metadata);
+```
+
+</CodeBlocks>
+
+### Updating metadata
+
+Updates **merge** into the inbox's existing metadata — keys you include are added or overwritten, and keys you omit are preserved.
+
+<Note>
+  To remove a single key, send it with a `null` value. To clear all metadata at
+  once, send `metadata` as `null`. Every update must include either
+  `display_name` or `metadata`.
+</Note>
+
+<CodeBlocks>
+
+```python title="Python"
+# Add or overwrite keys; the keys you omit stay unchanged
+client.inboxes.update(
+    inbox_id="support-agent@agentmail.to",
+    metadata={"tier": "enterprise"},
+)
+
+# Remove a single key
+client.inboxes.update(
+    inbox_id="support-agent@agentmail.to",
+    metadata={"tier": None},
+)
+
+# Clear all metadata
+client.inboxes.update(
+    inbox_id="support-agent@agentmail.to",
+    metadata=None,
+)
+```
+
+```typescript title="TypeScript"
+// Add or overwrite keys; the keys you omit stay unchanged
+await client.inboxes.update("support-agent@agentmail.to", {
+  metadata: { tier: "enterprise" },
+});
+
+// Remove a single key
+await client.inboxes.update("support-agent@agentmail.to", {
+  metadata: { tier: null },
+});
+
+// Clear all metadata
+await client.inboxes.update("support-agent@agentmail.to", {
+  metadata: null,
+});
+```
+
+</CodeBlocks>
+
+## Inbox-scoped API keys
+
+You can create API keys that are restricted to a single inbox. An inbox-scoped key can only access that inbox's threads, messages, and drafts. This is useful when you want to give an agent or integration the minimum access it needs.
+
+<CodeBlocks>
+```python
+# Create a key scoped to one inbox
+key = client.inboxes.api_keys.create(
+    new_inbox.inbox_id,
+    name="support-agent-key"
+)
+
+# The full key is only returned once
+print(key.api_key)
+```
+
+```typescript title="TypeScript"
+const key = await client.inboxes.apiKeys.create(newInbox.id, {
+  name: "support-agent-key",
+});
+
+// The full key is only returned once
+console.log(key.apiKey);
+```
+</CodeBlocks>
+
+See the [Multi-Tenancy guide](/multi-tenancy#inbox-scoped-keys) for more on scoped keys.
+
+## Copy for Cursor / Claude
+
+Copy one of the blocks below into Cursor or Claude for complete Inboxes API knowledge in one shot.
+
+<CodeBlocks>
+  ```python title="Python"
+  """
+  AgentMail Inboxes — copy into Cursor/Claude.
+
+  Setup: pip install agentmail python-dotenv. Set AGENTMAIL_API_KEY in .env.
+
+  API reference:
+  - inboxes.create(username?, domain?, display_name?, client_id?, metadata?) — client_id for idempotent retries; metadata is custom key-value data
+  - inboxes.get(inbox_id)
+  - inboxes.list(limit?, page_token?)
+  - inboxes.update(inbox_id, display_name?, metadata?) — at least one field required; metadata is merged, not replaced
+  - inboxes.delete(inbox_id)
+  - inboxes.api_keys.create(inbox_id, name) — inbox-scoped key
+  - inboxes.api_keys.list(inbox_id)
+  - inboxes.api_keys.delete(inbox_id, api_key_id)
+
+  Errors: SDK raises on 4xx/5xx. Rate limit: 429 with Retry-After.
+  """
+  import os
+  from dotenv import load_dotenv
+  from agentmail import AgentMail
+
+  load_dotenv()
+  client = AgentMail(api_key=os.getenv("AGENTMAIL_API_KEY"))
+
+  # Create (client_id for idempotent retries)
+  inbox = client.inboxes.create(client_id="my-inbox-v1")
+
+  # Get, list
+  retrieved = client.inboxes.get(inbox.inbox_id)
+  all_inboxes = client.inboxes.list(limit=20)
+  print(f"Total: {all_inboxes.count}")
+  ```
+
+  ```typescript title="TypeScript"
+  /**
+   * AgentMail Inboxes — copy into Cursor/Claude.
+   *
+   * Setup: npm install agentmail dotenv. Set AGENTMAIL_API_KEY in .env.
+   *
+   * API reference:
+   * - inboxes.create({ username?, domain?, displayName?, clientId?, metadata? }) — metadata is custom key-value data
+   * - inboxes.get(inboxId)
+   * - inboxes.list({ limit?, pageToken? })
+   * - inboxes.update(inboxId, { displayName?, metadata? }) — at least one field required
+   * - inboxes.delete(inboxId)
+   * - inboxes.apiKeys.create(inboxId, { name }) — inbox-scoped key
+   * - inboxes.apiKeys.list(inboxId)
+   * - inboxes.apiKeys.delete(inboxId, apiKeyId)
+   *
+   * Errors: SDK throws on 4xx/5xx. Rate limit: 429 with Retry-After.
+   */
+  import { AgentMailClient } from "agentmail";
+  import "dotenv/config";
+
+  const client = new AgentMailClient({ apiKey: process.env.AGENTMAIL_API_KEY! });
+
+  async function main() {
+    const inbox = await client.inboxes.create({ clientId: "my-inbox-v1" });
+    const retrieved = await client.inboxes.get(inbox.inboxId);
+    const allInboxes = await client.inboxes.list({ limit: 20 });
+    console.log("Total:", allInboxes.count);
+  }
+  main();
+  ```
+</CodeBlocks>

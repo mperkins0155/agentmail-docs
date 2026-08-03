@@ -2,45 +2,35 @@
 title: Skills
 subtitle: Add AgentMail to AI coding assistants with the official skill
 slug: integrations/skills
-description: AgentMail's official skill for Moltbot, Claude Code, Cursor, and other AI assistants
+description: AgentMail's official skill for OpenClaw, Claude Code, Cursor, and other AI assistants
 ---
 
 ## Getting started
 
-AgentMail provides an official skill that can be installed on AI coding assistants and agents that support the [AgentSkills](https://skills.sh) format. This includes Moltbot, Claude Code, Cursor, Codex, and other compatible tools.
+AgentMail provides an official skill that can be installed on AI coding assistants and agents that support the [AgentSkills](https://skills.sh) format. This includes OpenClaw, Claude Code, Cursor, Codex, and other compatible tools.
 
 The skill is available at [skills.sh/agentmail-to/agentmail-skills/agentmail](https://skills.sh/agentmail-to/agentmail-skills/agentmail).
 
 ## Installation
 
-### Moltbot
-
-Install the skill using the Moltbot CLI:
+Install the skill using the [skills CLI](https://github.com/vercel-labs/skills). This works with Claude Code, Cursor, OpenClaw, Codex, and other compatible agents:
 
 ```bash
-moltbot skills install agentmail-to/agentmail-skills/agentmail
+npx skills add agentmail-to/agentmail-skills
 ```
 
-Or install via ClawdHub:
+To skip interactive prompts, specify the skill and agent directly:
 
 ```bash
-clawdhub install agentmail
+npx skills add agentmail-to/agentmail-skills --skill agentmail --agent claude-code
 ```
 
-### Claude Code
+### OpenClaw via ClawHub
 
-Add the skill to your Claude Code configuration:
-
-```bash
-claude-code skills install agentmail-to/agentmail-skills/agentmail
-```
-
-### Cursor
-
-Install the skill in Cursor:
+OpenClaw users can also install via ClawHub:
 
 ```bash
-cursor skills install agentmail-to/agentmail-skills/agentmail
+npx clawhub@latest install agentmail
 ```
 
 ### Manual installation
@@ -63,9 +53,9 @@ Set the `AGENTMAIL_API_KEY` environment variable:
 export AGENTMAIL_API_KEY="your-api-key-here"
 ```
 
-### Moltbot configuration
+### OpenClaw configuration
 
-Add the API key to `~/.clawdbot/moltbot.json`:
+Add the API key to `~/.openclaw/openclaw.json`:
 
 ```json
 {

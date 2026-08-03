@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
 
 imports:
+  global: __package__.yml
   events: events.yml
 
 types:
@@ -18,13 +19,19 @@ types:
       inbox_ids: optional<events.InboxIds>
       pod_ids: optional<events.PodIds>
 
+  Error:
+    properties:
+      type: literal<"error">
+      name: global.ErrorName
+      message: global.ErrorMessage
+
 channel:
   url: Websockets
   path: /v0
   display-name: Connect
   auth: true
   query-parameters:
-    auth_token:
+    api_key:
       type: optional<string>
       docs: Your API key. Required if Authorization header is not set.
   messages:
@@ -55,3 +62,6 @@ channel:
     domain_verified:
       origin: server
       body: events.DomainVerifiedEvent
+    error:
+      origin: server
+      body: Error

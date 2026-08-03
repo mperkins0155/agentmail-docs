@@ -230,6 +230,17 @@ Subscribe(
     inbox_ids=["agent@agentmail.to"],
     event_types=["message.received", "message.sent"]
 )
+
+# Subscribe to filtered inbound events
+Subscribe(
+    inbox_ids=["agent@agentmail.to"],
+    event_types=[
+        "message.received",
+        "message.received.spam",
+        "message.received.blocked",
+        "message.received.unauthenticated",
+    ]
+)
 ```
 
 **TypeScript:**
@@ -252,7 +263,23 @@ socket.sendSubscribe({
   inboxIds: ["agent@agentmail.to"],
   eventTypes: ["message.received", "message.sent"],
 });
+
+// Subscribe to filtered inbound events
+socket.sendSubscribe({
+  type: "subscribe",
+  inboxIds: ["agent@agentmail.to"],
+  eventTypes: [
+    "message.received",
+    "message.received.spam",
+    "message.received.blocked",
+    "message.received.unauthenticated",
+  ],
+});
 ```
+
+<Callout intent="info">
+  By default (when no `event_types` are specified), spam, blocked, and unauthenticated events are excluded from the subscription. To receive them, explicitly include `message.received.spam`, `message.received.blocked`, or `message.received.unauthenticated` in `event_types`. These events also require the matching label visibility permission: `label_spam_read`, `label_blocked_read`, or `label_unauthenticated_read`.
+</Callout>
 
 ---
 
@@ -268,7 +295,7 @@ socket.sendSubscribe({
 
 | Event | Python | TypeScript | Description |
 |-------|--------|------------|-------------|
-| `message_received` | `MessageReceivedEvent` | `AgentMail.MessageReceivedEvent` | New email received |
+| `message_received` | `MessageReceivedEvent` | `AgentMail.MessageReceivedEvent` | Email received. Check `event_type` for `message.received`, `message.received.spam`, `message.received.blocked`, or `message.received.unauthenticated` |
 | `message_sent` | `MessageSentEvent` | `AgentMail.MessageSentEvent` | Email was sent |
 | `message_delivered` | `MessageDeliveredEvent` | `AgentMail.MessageDeliveredEvent` | Email was delivered |
 | `message_bounced` | `MessageBouncedEvent` | `AgentMail.MessageBouncedEvent` | Email bounced |
@@ -368,5 +395,57 @@ async function main() {
 
 main();
 ```
+
+---
+
+## Copy for Cursor / Claude
+
+Copy one of the blocks below into Cursor or Claude for WebSockets in one shot.
+
+<CodeBlocks>
+  ```python title="Python"
+  """
+  AgentMail WebSockets — copy into Cursor/Claude. Real-time events, no public URL needed.
+
+  Sync: with client.websockets.connect() as socket: socket.send_subscribe(Subscribe(inbox_ids=[...])); for event in socket: ...
+  Async: async with client.websockets.connect() as socket: await socket.send_subscribe(...); async for event in socket: ...
+  Subscribe(inbox_ids=[...], pod_ids=[...], event_types=[...])
+  Event types: Subscribed, MessageReceivedEvent, MessageSentEvent, MessageDeliveredEvent, MessageBouncedEvent, MessageComplainedEvent, MessageRejectedEvent, DomainVerifiedEvent
+  Spam, blocked, and unauthenticated events require explicit opt-in via event_types, plus the matching label_spam_read / label_blocked_read / label_unauthenticated_read permission.
+  """
+  from agentmail import AgentMail, Subscribe, Subscribed, MessageReceivedEvent
+
+  client = AgentMail(api_key="YOUR_API_KEY")
+  with client.websockets.connect() as socket:
+    socket.send_subscribe(Subscribe(inbox_ids=["agent@agentmail.to"]))
+    for event in socket:
+      if isinstance(event, Subscribed): print(event.inbox_ids)
+      elif isinstance(event, MessageReceivedEvent): print(event.message.subject)
+  ```
+
+  ```typescript title="TypeScript"
+  /**
+   * AgentMail WebSockets — copy into Cursor/Claude. Real-time events, no public URL.
+   *
+   * const socket = await client.websockets.connect();
+   * socket.on("open", () => socket.sendSubscribe({ type: "subscribe", inboxIds: [...] }));
+   * socket.on("message", (e) => { if (e.type === "subscribed") ...; if (e.type === "message_received") ... });
+   * socket.on("close" | "error", ...);
+   */
+  import { AgentMailClient } from "agentmail";
+
+  const client = new AgentMailClient({ apiKey: process.env.AGENTMAIL_API_KEY });
+
+  async function main() {
+    const socket = await client.websockets.connect();
+    socket.on("open", () => socket.sendSubscribe({ type: "subscribe", inboxIds: ["agent@agentmail.to"] }));
+    socket.on("message", (e) => {
+      if (e.type === "subscribed") console.log(e.inboxIds);
+      if (e.type === "message_received") console.log(e.message.subject);
+    });
+  }
+  main().catch(console.error);
+  ```
+</CodeBlocks>
 
 ---

@@ -10,9 +10,23 @@ instances:
         owner: agentmail-to
         repo: agentmail-docs
         branch: main
+  - url: https://agentmail-production.docs.buildwithfern.com/docs
+    custom-domain: agentmail.to/docs
+    edit-this-page:
+      github:
+        owner: agentmail-to
+        repo: agentmail-docs
+        branch: main
 
 title: AgentMail | Documentation
 favicon: assets/agentmail-favicon.ico
+
+metadata:
+  og:description: "AgentMail is an email API built for AI agents. Create inboxes, send and receive messages, manage threads, and handle webhooks programmatically."
+  canonical-host: agentmail.to/docs
+
+agents:
+  page-directive: "For clean Markdown content of this page, append .md to this URL. For the complete documentation index, see https://docs.agentmail.to/llms.txt. For full content including API reference and SDK examples, see https://docs.agentmail.to/llms-full.txt."
 
 ai-search:
   location:
@@ -27,6 +41,7 @@ ai-examples:
 
 logo:
   dark: assets/logos/agentmail-logo-landscape.png
+  light: assets/logos/agentmail-logo-landscape-light.svg
   height: 30
 
 colors:
@@ -70,15 +85,140 @@ tabs:
   api:
     display-name: API Reference
     icon: terminal
-  # changelog:
-  #   display-name: Changelog
-  #   icon: light clock
-  #   changelog: ./changelog
+  kb:
+    display-name: Knowledge Base
+    icon: light book-open
+  changelog:
+    display-name: Changelog
+    icon: light clock
+    changelog: ./changelog
 
 experimental:
   dynamic-snippets: true
 
 default-language: python
+
+redirects:
+  - source: /integrations/moltbot
+    destination: /integrations/openclaw
+    permanent: true
+  - source: /integrations/ai-onboarding
+    destination: /integrations/agent-onboarding
+    permanent: true
+
+  # --- 404 redirects from crawl report ---
+
+  # Old v0 API paths
+  - source: /v0/webhooks/webhook_id
+    destination: /webhooks-overview
+  - source: /v0/webhooks
+    destination: /webhooks-overview
+  - source: /v0/inboxes/:inbox_id/messages/:message_id/forward
+    destination: /api-reference/inboxes/messages/forward
+  - source: /v0/pods/pod_id/drafts
+    destination: /api-reference/pods/drafts/list
+  - source: /v0/domains/:domain_id/verify
+    destination: /api-reference/domains/verify
+  - source: /v0/pods/:pod_id/domains
+    destination: /api-reference/pods/list
+  - source: /v0/inboxes/:inbox_id/messages/:message_id
+    destination: /api-reference/inboxes/messages/list
+  - source: /v0/pods/pod_id/inboxes
+    destination: /api-reference/pods/list
+  - source: /v0/inboxes/:inbox_id/threads/:thread_id
+    destination: /api-reference/inboxes/threads/list
+  - source: /v0/pods/pod_id/threads/thread_id
+    destination: /api-reference/pods/threads/list
+  - source: /v0/inboxes/:inbox_id/metrics
+    destination: /api-reference/inboxes/metrics/query-events
+
+  # Old bare-metrics endpoint pages (replaced by /metrics/events)
+  - source: /api-reference/metrics/query
+    destination: /api-reference/metrics/query-events
+  - source: /api-reference/inboxes/metrics/query
+    destination: /api-reference/inboxes/metrics/query-events
+  - source: /api-reference/pods/metrics/query
+    destination: /api-reference/pods/metrics/query-events
+  - source: /v0/pods/:pod_id/drafts/:draft_id
+    destination: /api-reference/pods/drafts/get
+  - source: /v0/inboxes/inbox_id/messages/send
+    destination: /api-reference/inboxes/messages/send
+  - source: /v0/threads/:thread_id/attachments/:attachment_id
+    destination: /api-reference/threads/get-attachment
+  - source: /v0/webhooks/:webhook_id
+    destination: /api-reference/webhooks/get
+  - source: /v0/inboxes/:inbox_id/drafts
+    destination: /api-reference/inboxes/drafts/get
+  - source: /v0/drafts/:draft_id
+    destination: /api-reference/drafts/get
+  - source: /v0/inboxes/:inbox_id/threads
+    destination: /api-reference/inboxes/threads/get
+  - source: /v0/inboxes/:inbox_id
+    destination: /api-reference/inboxes/get
+  - source: /v0/pods/:pod_id
+    destination: /api-reference/pods/get
+  - source: /v0/inboxes/inbox_id/messages
+    destination: /api-reference/inboxes/messages/list
+  - source: /v0/inboxes/:inbox_id/messages/:message_id/attachments/:attachment_id
+    destination: /api-reference/inboxes/messages/get-attachment
+  - source: /v0/pods/:pod_id/inboxes/:inbox_id
+    destination: /api-reference/pods/inboxes/get
+  - source: /v0/inboxes/:inbox_id/drafts/:draft_id/send
+    destination: /api-reference/inboxes/drafts/send
+  - source: /v0/inboxes/:inbox_id/messages/:message_id/raw
+    destination: /api-reference/inboxes/messages/get-raw
+  - source: /v0/inboxes/:inbox_id/drafts/:draft_id
+    destination: /api-reference/inboxes/drafts/get
+  - source: /v0/threads/:thread_id
+    destination: /api-reference/threads/get
+  - source: /v0/inboxes/:inbox_id/messages/send
+    destination: /api-reference/inboxes/messages/send
+  - source: /v0/inboxes/inbox_id
+    destination: /api-reference/inboxes/get
+  - source: /v0/domains/:domain_id
+    destination: /api-reference/domains/get
+  - source: /v0/pods/:pod_id/drafts
+    destination: /api-reference/pods/drafts/list
+  - source: /v0/domains/:domain_id/zone-file
+    destination: /api-reference/domains/get-zone-file
+  - source: /v0/pods/:pod_id/threads
+    destination: /api-reference/pods/threads/list
+
+  # Old docs paths
+  - source: /documentation/resources/support
+    destination: /support
+  - source: /integrations/smithery
+    destination: /integrations/mcp
+  - source: /core-concepts/drafts
+    destination: /drafts
+  - source: /webhooks
+    destination: /webhooks-overview
+  - source: /integrations/crewai
+    destination: /integrations/skills
+  - source: /api-keys
+    destination: /api-reference/api-keys/list
+  - source: /verify
+    destination: /api-reference/domains/verify
+  - source: /deliverability
+    destination: /email-deliverability
+  - source: /reply-all
+    destination: /api-reference/inboxes/messages/reply-all
+  - source: /integrations/overview
+    destination: /integrations/skills
+  - source: /pods
+    destination: /documentation/core-concepts/pods
+  - source: /domains
+    destination: /custom-domains
+  - source: /best-practices/email-deliverability
+    destination: /email-deliverability
+  - source: /overview
+    destination: /webhooks-overview
+  - source: /webhook/agentmail
+    destination: /webhook-verification
+  - source: /get-started/quickstart
+    destination: /quickstart
+  - source: /pods/
+    destination: /documentation/core-concepts/pods
 
 navigation:
   - tab: docs
@@ -113,14 +253,23 @@ navigation:
           - page: Labels
             icon: fa-solid fa-tags
             path: pages/core-concepts/labels.mdx
+          - page: Lists
+            icon: fa-solid fa-filter
+            path: pages/core-concepts/lists.mdx
           - page: Attachments
             icon: fa-solid fa-paperclip
             path: pages/core-concepts/attachments.mdx
           - page: Pods
             icon: fa-solid fa-users
             path: pages/core-concepts/pods.mdx
+          - page: Permissions
+            icon: fa-solid fa-lock
+            path: pages/core-concepts/permissions.mdx
       - section: Integrations
         contents:
+          - page: Agent Onboarding
+            icon: fa-solid fa-user-plus
+            path: pages/integrations/agent-onboarding.mdx
           # - page: Overview
           #   icon: fa-solid fa-list
           #   path: pages/integrations/overview.mdx
@@ -130,11 +279,33 @@ navigation:
           - page: MCP
             icon: fa-solid fa-plug
             path: pages/integrations/mcp.mdx
-          - page: Openclaw
+          - page: CLI
+            icon: fa-solid fa-terminal
+            path: pages/integrations/cli.mdx
+          - page: Google ADK
+            icon: fa-brands fa-google
+            path: pages/integrations/google-adk.mdx
+          - page: LangChain
+            icon: fa-solid fa-link
+            path: pages/integrations/langchain.mdx
+          - page: OpenClaw
             icon: fa-solid fa-robot
             path: pages/integrations/openclaw.mdx
           - page: Replit
+            icon: fa-solid fa-laptop-code
             path: pages/integrations/replit.mdx
+          - page: x402
+            icon: fa-solid fa-credit-card
+            path: pages/integrations/x402.mdx
+          - page: MPP
+            icon: fa-solid fa-credit-card
+            path: pages/integrations/mpp.mdx
+          - page: LiveKit
+            icon: fa-solid fa-phone
+            path: pages/integrations/integrate-livekit-agents.mdx
+          - page: Sim.ai
+            icon: fa-solid fa-diagram-project
+            path: pages/integrations/sim.mdx
           # - page: Smithery
           #   path: pages/integrations/smithery.mdx
           # - page: Mastra
@@ -143,12 +314,18 @@ navigation:
           #   path: pages/integrations/crewai.mdx
       - section: Guides
         contents:
+          - page: AgentID Public-Key Authentication
+            icon: fa-solid fa-key
+            path: pages/guides/agentid-public-key-authentication.mdx
           - page: Sending & Receiving Email
             icon: fa-solid fa-right-left
             path: pages/guides/sending-receiving-email.mdx
           - page: IMAP & SMTP
             icon: fa-solid fa-envelope-open-text
             path: pages/guides/imap-smtp.mdx
+          - page: Multi-Tenancy
+            icon: fa-solid fa-building
+            path: pages/guides/multi-tenancy.mdx
           # - page: Semantic Search
           #   path: pages/guides/semantic-search.mdx
           # - page: Automatic Labeling
@@ -164,9 +341,10 @@ navigation:
               - page: Managing Existing Domains
                 icon: fa-solid fa-gear
                 path: pages/guides/domains/managing-domains.mdx
-          - page: Integrate LiveKit Agents
-            icon: fa-solid fa-phone
-            path: pages/guides/integrate-livekit-agents.mdx
+          - page: Google Workspace
+            hidden: true
+            icon: fa-brands fa-google
+            path: pages/guides/google-workspace.mdx
       - section: Webhooks
         contents:
           - page: Overview
@@ -186,6 +364,9 @@ navigation:
           - page: Overview
             icon: fa-solid fa-plug
             path: pages/websockets.mdx
+          - page: Quickstart
+            icon: fa-solid fa-bolt
+            path: pages/websockets-quickstart.mdx
       - section: Best Practices
         contents:
           - page: Email Deliverability
@@ -230,6 +411,9 @@ navigation:
           - page: FAQ
             icon: fa-regular fa-circle-question
             path: pages/resources/faq.mdx
+          - page: Error Reference
+            icon: fa-solid fa-triangle-exclamation
+            path: pages/resources/errors.mdx
           - page: Talon Reply Extraction
             icon: fa-solid fa-scissors
             path: pages/resources/talon.mdx
@@ -248,6 +432,9 @@ navigation:
               - page: SOC 2 Compliance
                 icon: fa-solid fa-certificate
                 path: pages/resources/security/soc2.mdx
+              - page: Spam & Virus Detection
+                icon: fa-solid fa-shield-virus
+                path: pages/resources/security/spam-virus-detection.mdx
 
   - tab: api
     layout:
@@ -257,15 +444,110 @@ navigation:
           python: agentmail
           typescript: agentmail
         layout:
+          - agent
           - inboxes
           - threads
           - messages
           - drafts
-          - domains
           - webhooks
           - websockets
+          - domains
+          - lists
           - metrics
           - api-keys
           - pods
           - organizations
-  # - tab: changelog
+  - tab: kb
+    layout:
+      - page: Introduction
+        icon: fa-solid fa-book-open
+        path: pages/knowledge-base/introduction.mdx
+      - section: Getting Started
+        contents:
+          - page: What is AgentMail?
+            icon: fa-regular fa-circle-question
+            path: pages/knowledge-base/what-is-agentmail.mdx
+          - page: What can I do with an inbox?
+            icon: fa-solid fa-inbox
+            path: pages/knowledge-base/inbox-capabilities.mdx
+          - page: Creating your first inbox
+            icon: fa-solid fa-plus
+            path: pages/knowledge-base/creating-first-inbox.mdx
+          - page: Getting your API key
+            icon: fa-solid fa-key
+            path: pages/knowledge-base/getting-api-key.mdx
+      - section: Agent Patterns
+        contents:
+          - page: Handling inbound emails
+            icon: fa-solid fa-right-left
+            path: pages/knowledge-base/handling-inbound-emails.mdx
+          - page: Allowlists & blocklists
+            icon: fa-solid fa-filter
+            path: pages/knowledge-base/allowlists-blocklists.mdx
+          - page: Managing threaded conversations
+            icon: fa-regular fa-comments
+            path: pages/knowledge-base/threaded-conversations.mdx
+          - page: Human-in-the-loop workflows
+            icon: fa-solid fa-user-check
+            path: pages/knowledge-base/human-in-the-loop.mdx
+          - page: Pods for multi-tenant email
+            icon: fa-solid fa-users
+            path: pages/knowledge-base/pods-multi-tenant.mdx
+          - page: Using labels to track state
+            icon: fa-solid fa-tags
+            path: pages/knowledge-base/labels-track-state.mdx
+      - section: Domains & Deliverability
+        contents:
+          - page: Custom domain setup
+            icon: fa-solid fa-globe
+            path: pages/knowledge-base/custom-domain-setup.mdx
+          - page: SPF, DKIM, and DMARC setup
+            icon: fa-solid fa-shield-halved
+            path: pages/knowledge-base/spf-dkim-dmarc.mdx
+          - page: Emails going to spam
+            icon: fa-solid fa-triangle-exclamation
+            path: pages/knowledge-base/emails-going-to-spam.mdx
+          - page: Warming Up
+            icon: fa-solid fa-temperature-half
+            path: pages/knowledge-base/domain-warming.mdx
+          - page: MX record conflicts
+            icon: fa-solid fa-code-merge
+            path: pages/knowledge-base/mx-record-conflicts.mdx
+          # - page: Warming up your inbox
+          #   icon: fa-solid fa-fire
+          #   path: pages/knowledge-base/warming-up-your-inbox.mdx
+      - section: Troubleshooting
+        contents:
+          - page: API 403 error
+            icon: fa-solid fa-ban
+            path: pages/knowledge-base/api-403-error.mdx
+          - page: Rate limits
+            icon: fa-solid fa-gauge-high
+            path: pages/knowledge-base/rate-limits.mdx
+          - page: Preventing duplicate sends
+            icon: fa-solid fa-clone
+            path: pages/knowledge-base/preventing-duplicate-sends.mdx
+          - page: Domain not verifying
+            icon: fa-solid fa-circle-xmark
+            path: pages/knowledge-base/domain-not-verifying.mdx
+          - page: Emails bouncing
+            icon: fa-solid fa-rotate-left
+            path: pages/knowledge-base/emails-bouncing.mdx
+          - page: Why are my emails not showing up?
+            icon: fa-solid fa-envelope-circle-check
+            path: pages/knowledge-base/inbound-emails-missing.mdx
+      - section: DNS Guides
+        contents:
+          - page: Cloudflare
+            icon: fa-solid fa-cloud
+            path: pages/knowledge-base/dns-cloudflare.mdx
+          - page: GoDaddy
+            icon: fa-solid fa-globe
+            path: pages/knowledge-base/dns-godaddy.mdx
+          - page: Route 53 (AWS)
+            icon: fa-brands fa-aws
+            path: pages/knowledge-base/dns-route53.mdx
+          - page: Namecheap
+            icon: fa-solid fa-n
+            path: pages/knowledge-base/dns-namecheap.mdx
+  - tab: changelog

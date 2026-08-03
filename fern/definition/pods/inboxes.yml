@@ -17,11 +17,17 @@ service:
       method: GET
       path: ""
       display-name: List Inboxes
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:inboxes list --pod-id <pod_id>
+        ```
       request:
         name: ListInboxesRequest
         query-parameters:
           limit: optional<global.Limit>
           page_token: optional<global.PageToken>
+          ascending: optional<global.Ascending>
       response: inboxes.ListInboxesResponse
       errors:
         - global.NotFoundError
@@ -30,6 +36,11 @@ service:
       method: GET
       path: /{inbox_id}
       display-name: Get Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:inboxes get --pod-id <pod_id> --inbox-id <inbox_id>
+        ```
       path-parameters:
         inbox_id: inboxes.InboxId
       response: inboxes.Inbox
@@ -40,15 +51,42 @@ service:
       method: POST
       path: ""
       display-name: Create Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:inboxes create --pod-id <pod_id> --username myagent --domain example.com
+        ```
       request: inboxes.CreateInboxRequest
       response: inboxes.Inbox
       errors:
         - global.ValidationError
+        - global.UnprocessableError
+
+    update:
+      method: PATCH
+      path: /{inbox_id}
+      display-name: Update Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:inboxes update --pod-id <pod_id> --inbox-id <inbox_id>
+        ```
+      path-parameters:
+        inbox_id: inboxes.InboxId
+      request: inboxes.UpdateInboxRequest
+      response: inboxes.Inbox
+      errors:
+        - global.NotFoundError
 
     delete:
       method: DELETE
       path: /{inbox_id}
       display-name: Delete Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:inboxes delete --pod-id <pod_id> --inbox-id <inbox_id>
+        ```
       path-parameters:
         inbox_id: inboxes.InboxId
       errors:

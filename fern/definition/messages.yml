@@ -145,6 +145,109 @@ types:
         type: list<MessageItem>
         docs: Ordered by `timestamp` descending.
 
+  SearchMessageHighlights:
+    docs: |
+      Matched fragments per field on a message search result, with matched terms
+      wrapped in `**`. A field key is present only when the query matched that
+      field, so the present keys also tell you which fields produced the hit.
+    properties:
+      from:
+        type: optional<list<string>>
+        docs: Matched fragments from the sender address.
+      recipients:
+        type: optional<list<string>>
+        docs: Matched fragments from the recipient addresses (to, cc, or bcc).
+      subject:
+        type: optional<list<string>>
+        docs: Matched fragments from the subject.
+      text:
+        type: optional<list<string>>
+        docs: Matched fragments from the message body.
+
+  SearchMessageItem:
+    extends: MessageItem
+    properties:
+      highlights:
+        type: optional<SearchMessageHighlights>
+        docs: Matched fragments per field. Present only when the query matched an indexed field.
+
+  SearchMessagesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      messages:
+        type: list<SearchMessageItem>
+        docs: Ordered by relevance, best match first.
+
+  BatchGetMessagesMessageIds:
+    type: list<MessageId>
+    docs: |
+      IDs of messages to fetch. Maximum 500 ids per request. Duplicates are
+      rejected with a validation error. IDs not found in the inbox (including
+      cross-inbox or permission-restricted) are silently omitted from the
+      response; callers detect misses by comparing `count` against `limit`.
+
+  BatchGetMessagesRequest:
+    properties:
+      message_ids: BatchGetMessagesMessageIds
+
+  BatchGetMessagesResponse:
+    properties:
+      limit: global.Limit
+      count: global.Count
+      messages:
+        type: list<Message>
+        docs: |
+          Found messages. Order matches `message_ids` in the request. Body
+          fields (`text`, `html`, `extracted_text`, `extracted_html`) are
+          never populated; use the single-message endpoint to retrieve bodies.
+
+  BatchUpdateMessagesMessageIds:
+    type: list<MessageId>
+    docs: |
+      IDs of messages to update. Maximum 50 ids per request. Duplicates are
+      rejected with a validation error. IDs not found in the inbox (including
+      cross-inbox or permission-restricted) are silently excluded from the
+      update; callers detect exclusions by comparing `count` against `limit`.
+
+  BatchUpdateMessagesRequest:
+    properties:
+      message_ids: BatchUpdateMessagesMessageIds
+      add_labels:
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to add to every message.
+      remove_labels:
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to remove from every message.
+
+  BatchUpdateMessagesResponse:
+    properties:
+      limit: global.Limit
+      count: global.Count
+      updates:
+        type: list<UpdateMessageResponse>
+        docs: |
+          Updated messages with their new labels. Order matches `message_ids`
+          in the request. Excluded ids are omitted, so `count` may be less than
+          `limit`.
+
+  RawMessageResponse:
+    docs: S3 presigned URL to download the raw .eml file.
+    properties:
+      message_id:
+        type: MessageId
+        docs: ID of the message.
+      size:
+        type: MessageSize
+        docs: Size of the raw message in bytes.
+      download_url:
+        type: string
+        docs: S3 presigned URL to download the raw message. Expires at expires_at.
+      expires_at:
+        type: datetime
+        docs: Time at which the download URL expires.
+
   Addresses:
     discriminated: false
     union:
@@ -193,6 +296,11 @@ types:
       message_id: MessageId
       thread_id: threads.ThreadId
 
+  UpdateMessageResponse:
+    properties:
+      message_id: MessageId
+      labels: MessageLabels
+
   ReplyAll:
     type: boolean
     docs: Reply to all recipients of the original message.
@@ -219,14 +327,21 @@ types:
       attachments: optional<SendMessageAttachments>
       headers: optional<SendMessageHeaders>
 
+  UpdateMessageLabels:
+    discriminated: false
+    union:
+      - string
+      - list<string>
+    docs: Label or list of labels.
+
   UpdateMessageRequest:
     properties:
       add_labels:
-        type: optional<list<string>>
-        docs: Labels to add to message.
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to add to message.
       remove_labels:
-        type: optional<list<string>>
-        docs: Labels to remove from message.
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to remove from message.
 
 errors:
   MessageRejectedError:

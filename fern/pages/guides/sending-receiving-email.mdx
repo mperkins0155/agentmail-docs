@@ -85,6 +85,11 @@ Here's the step-by-step logic for a polling-based conversational agent.
         const messageIdToReplyTo = lastMessage.message_id;
         ```
         </CodeBlocks>
+
+        <Tip>
+          Use `last_message.extracted_text` (or `extracted_html`) when you need
+          just the new reply content, without quoted history.
+        </Tip>
     </Step>
     <Step title="3. Send the Reply and Update Labels">
         Now that you have the `message_id` to reply to, you can send your agent's response. It's also a best practice to update the `Labels` on the original `Message` at the same time, removing the `unreplied` `Label` and adding a `replied` `Label` to prevent the agent from replying to the same message twice.
@@ -118,6 +123,20 @@ Here's the step-by-step logic for a polling-based conversational agent.
             removeLabels: ["unreplied"],
         });
         ```
+        ```bash title="CLI"
+        # send the reply
+        agentmail inboxes:messages reply \
+          --inbox-id support@agentmail.to \
+          --message-id <message_id> \
+          --text "This is our agent's helpful reply!"
+
+        # update the labels on the original message
+        agentmail inboxes:messages update \
+          --inbox-id support@agentmail.to \
+          --message-id <message_id> \
+          --add-label replied \
+          --remove-label unreplied
+        ```
         </CodeBlocks>
     </Step>
 
@@ -126,6 +145,52 @@ Here's the step-by-step logic for a polling-based conversational agent.
 <Callout intent="success" title="Real-Time Processing with Webhooks">
 For production applications, polling is inefficient. The best way to handle incoming replies is to use `Webhooks`. This allows AgentMail to notify your agent instantly when a new `Message` arrives, so you can reply in real-time.
 
-[**Learn how to set up `Webhooks` →**](/overview)
+[**Learn how to set up `Webhooks` →**](/webhooks-overview)
 
+</Callout>
+
+## Scheduling Emails
+
+Instead of sending immediately, you can schedule emails for a future time—perfect for delivering messages during business hours or spacing out outreach.
+
+Create a `Draft` with the `send_at` field and AgentMail handles the rest. The email is automatically sent at the specified time.
+
+<CodeBlocks>
+```python title="Python"
+from datetime import datetime, timedelta
+
+# Schedule for tomorrow at 9 AM UTC
+send_time = (datetime.utcnow() + timedelta(days=1)).replace(hour=9, minute=0, second=0)
+
+client.inboxes.drafts.create(
+    inbox_id="outreach@agentmail.to",
+    to=["prospect@example.com"],
+    subject="Quick question about your workflow",
+    text="Hi, I noticed you're using...",
+    html="<p>Hi, I noticed you're using...</p>",
+    send_at=send_time.isoformat() + "Z"
+)
+```
+
+```typescript title="TypeScript"
+// Schedule for tomorrow at 9 AM UTC
+const sendTime = new Date();
+sendTime.setUTCDate(sendTime.getUTCDate() + 1);
+sendTime.setUTCHours(9, 0, 0, 0);
+
+await client.inboxes.drafts.create(
+    "outreach@agentmail.to",
+    {
+        to: ["prospect@example.com"],
+        subject: "Quick question about your workflow",
+        text: "Hi, I noticed you're using...",
+        html: "<p>Hi, I noticed you're using...</p>",
+        sendAt: sendTime.toISOString()
+    }
+);
+```
+</CodeBlocks>
+
+<Callout intent="info">
+For more details on scheduled sending—including how to cancel, reschedule, list scheduled drafts, and build conditional follow-up workflows—see the [**Drafts**](/drafts) page.
 </Callout>

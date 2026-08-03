@@ -18,6 +18,16 @@ service:
       method: GET
       path: ""
       display-name: List Threads
+      docs: |
+        Lists threads in the pod, most recent first. Pass `senders`,
+        `recipients`, or `subject` to filter by substring. Filtered requests are
+        served by search, which caps `limit` at 100. For relevance-ranked
+        full-text search, use `Search Threads`.
+
+        **CLI:**
+        ```bash
+        agentmail pods:threads list --pod-id <pod_id>
+        ```
       request:
         name: ListThreadsRequest
         query-parameters:
@@ -28,14 +38,53 @@ service:
           after: optional<global.After>
           ascending: optional<global.Ascending>
           include_spam: optional<global.IncludeSpam>
+          include_blocked: optional<global.IncludeBlocked>
+          include_unauthenticated: optional<global.IncludeUnauthenticated>
+          include_trash: optional<global.IncludeTrash>
+          senders:
+            type: optional<list<string>>
+            docs: Filter to threads whose senders contain this value (substring match). Repeatable; all values must match.
+          recipients:
+            type: optional<list<string>>
+            docs: Filter to threads whose recipients contain this value (substring match). Repeatable; all values must match.
+          subject:
+            type: optional<list<string>>
+            docs: Filter to threads whose subject contains this value (substring match). Repeatable; all values must match.
       response: threads.ListThreadsResponse
       errors:
+        - global.NotFoundError
+
+    search:
+      method: GET
+      path: /search
+      display-name: Search Threads
+      docs: |
+        Full-text search across threads in the pod, ranked by relevance. The
+        query is matched against senders, recipients, and subject (substring)
+        and the message body (tokenized full text). Spam, trash, blocked, and
+        unauthenticated threads are always excluded. `limit` cannot exceed 100.
+      request:
+        name: SearchThreadsRequest
+        query-parameters:
+          q: global.Query
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          before: optional<global.Before>
+          after: optional<global.After>
+      response: threads.SearchThreadsResponse
+      errors:
+        - global.ValidationError
         - global.NotFoundError
 
     get:
       method: GET
       path: /{thread_id}
       display-name: Get Thread
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:threads get --pod-id <pod_id> --thread-id <thread_id>
+        ```
       path-parameters:
         thread_id: threads.ThreadId
       response: threads.Thread
@@ -46,9 +95,44 @@ service:
       method: GET
       path: /{thread_id}/attachments/{attachment_id}
       display-name: Get Attachment
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail pods:threads get-attachment --pod-id <pod_id> --thread-id <thread_id> --attachment-id <attachment_id>
+        ```
       path-parameters:
         thread_id: threads.ThreadId
         attachment_id: attachments.AttachmentId
       response: attachments.AttachmentResponse
+      errors:
+        - global.NotFoundError
+
+    update:
+      method: PATCH
+      path: /{thread_id}
+      display-name: Update Thread
+      docs: Updates thread labels. Cannot add or remove system labels (sent, received, bounced, etc.). Rejects requests with a `422` for threads with 100 or more messages.
+      path-parameters:
+        thread_id: threads.ThreadId
+      request: threads.UpdateThreadRequest
+      response: threads.UpdateThreadResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.UnprocessableError
+
+    delete:
+      method: DELETE
+      path: /{thread_id}
+      display-name: Delete Thread
+      docs: |
+        Permanently deletes a thread and all of its messages.
+
+        **CLI:**
+        ```bash
+        agentmail pods:threads delete --pod-id <pod_id> --thread-id <thread_id>
+        ```
+      path-parameters:
+        thread_id: threads.ThreadId
       errors:
         - global.NotFoundError

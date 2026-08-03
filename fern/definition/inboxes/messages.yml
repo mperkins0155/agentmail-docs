@@ -18,6 +18,17 @@ service:
       method: GET
       path: ""
       display-name: List Messages
+      docs: |
+        Lists messages in the inbox, most recent first. Pass `from`, `to`, or
+        `subject` to filter by substring. Filtered requests are served by
+        search, which caps `limit` at 100. For relevance-ranked full-text
+        search across sender, recipients, subject, and message body, use
+        `Search Messages`.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages list --inbox-id <inbox_id>
+        ```
       request:
         name: ListMessagesRequest
         query-parameters:
@@ -28,24 +39,107 @@ service:
           after: optional<global.After>
           ascending: optional<global.Ascending>
           include_spam: optional<global.IncludeSpam>
+          include_blocked: optional<global.IncludeBlocked>
+          include_unauthenticated: optional<global.IncludeUnauthenticated>
+          include_trash: optional<global.IncludeTrash>
+          from:
+            type: optional<list<string>>
+            docs: Filter to messages whose sender contains this value (substring match). Repeatable; all values must match.
+          to:
+            type: optional<list<string>>
+            docs: Filter to messages whose recipients (to, cc, or bcc) contain this value (substring match). Repeatable; all values must match.
+          subject:
+            type: optional<list<string>>
+            docs: Filter to messages whose subject contains this value (substring match). Repeatable; all values must match.
       response: messages.ListMessagesResponse
       errors:
+        - global.NotFoundError
+
+    search:
+      method: GET
+      path: /search
+      display-name: Search Messages
+      docs: |
+        Full-text search across messages in the inbox, ranked by relevance. The
+        query is matched against the sender, recipients, and subject (substring)
+        and the message body (tokenized full text). Spam, trash, blocked, and
+        unauthenticated messages are always excluded. `limit` cannot exceed 100.
+      request:
+        name: SearchMessagesRequest
+        query-parameters:
+          q: global.Query
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          before: optional<global.Before>
+          after: optional<global.After>
+      response: messages.SearchMessagesResponse
+      errors:
+        - global.ValidationError
         - global.NotFoundError
 
     get:
       method: GET
       path: /{message_id}
       display-name: Get Message
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages get --inbox-id <inbox_id> --message-id <message_id>
+        ```
       path-parameters:
         message_id: messages.MessageId
       response: messages.Message
       errors:
         - global.NotFoundError
 
+    batchGet:
+      method: POST
+      path: /batch-get
+      display-name: Batch Get Messages
+      docs: |
+        Fetch metadata for up to 500 messages in one request. Missing or
+        restricted IDs are silently omitted; compare `count` against `limit`
+        to detect misses.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages batch-get --inbox-id <inbox_id> --message-id <id1> --message-id <id2>
+        ```
+      request: messages.BatchGetMessagesRequest
+      response: messages.BatchGetMessagesResponse
+      errors:
+        - global.ValidationError
+
+    batchUpdate:
+      method: POST
+      path: /batch-update
+      display-name: Batch Update Messages
+      docs: |
+        Apply one label change to up to 50 messages in a single request. The
+        same add_labels and remove_labels apply to every message id, and at
+        least one of them must be provided. The update is atomic: either all
+        resolved messages are updated or none are. Missing or restricted ids
+        are silently excluded; compare `count` against `limit` to detect
+        exclusions.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages batch-update --inbox-id <inbox_id> --message-id <id1> --message-id <id2> --add-label read --remove-label unread
+        ```
+      request: messages.BatchUpdateMessagesRequest
+      response: messages.BatchUpdateMessagesResponse
+      errors:
+        - global.ValidationError
+
     getAttachment:
       method: GET
       path: /{message_id}/attachments/{attachment_id}
       display-name: Get Attachment
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages get-attachment --inbox-id <inbox_id> --message-id <message_id> --attachment-id <attachment_id>
+        ```
       path-parameters:
         message_id: messages.MessageId
         attachment_id: attachments.AttachmentId
@@ -57,9 +151,47 @@ service:
       method: GET
       path: /{message_id}/raw
       display-name: Get Raw Message
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages get-raw --inbox-id <inbox_id> --message-id <message_id>
+        ```
       path-parameters:
         message_id: messages.MessageId
-      response: file
+      response: messages.RawMessageResponse
+      errors:
+        - global.NotFoundError
+
+    update:
+      method: PATCH
+      path: /{message_id}
+      display-name: Update Message
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages update --inbox-id <inbox_id> --message-id <message_id> --add-label read --remove-label unread
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      request: messages.UpdateMessageRequest
+      response: messages.UpdateMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+
+    delete:
+      method: DELETE
+      path: /{message_id}
+      display-name: Delete Message
+      docs: |
+        Permanently deletes a message.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages delete --inbox-id <inbox_id> --message-id <message_id>
+        ```
+      path-parameters:
+        message_id: messages.MessageId
       errors:
         - global.NotFoundError
 
@@ -67,17 +199,30 @@ service:
       method: POST
       path: /send
       display-name: Send Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages send --inbox-id <inbox_id> --to recipient@example.com --subject "Hello" --text "Body"
+        ```
       request: messages.SendMessageRequest
       response: messages.SendMessageResponse
       errors:
         - global.ValidationError
         - global.NotFoundError
+        - global.ConflictError
         - messages.MessageRejectedError
 
     reply:
       method: POST
       path: /{message_id}/reply
       display-name: Reply To Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages reply --inbox-id <inbox_id> --message-id <message_id> --text "Reply text"
+        ```
       path-parameters:
         message_id: messages.MessageId
       request: messages.ReplyToMessageRequest
@@ -85,12 +230,19 @@ service:
       errors:
         - global.ValidationError
         - global.NotFoundError
+        - global.ConflictError
         - messages.MessageRejectedError
 
     reply-all:
       method: POST
       path: /{message_id}/reply-all
       display-name: Reply All Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages reply-all --inbox-id <inbox_id> --message-id <message_id> --text "Reply text"
+        ```
       path-parameters:
         message_id: messages.MessageId
       request: messages.ReplyAllMessageRequest
@@ -98,12 +250,19 @@ service:
       errors:
         - global.ValidationError
         - global.NotFoundError
+        - global.ConflictError
         - messages.MessageRejectedError
 
     forward:
       method: POST
       path: /{message_id}/forward
       display-name: Forward Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes:messages forward --inbox-id <inbox_id> --message-id <message_id> --to recipient@example.com
+        ```
       path-parameters:
         message_id: messages.MessageId
       request: messages.SendMessageRequest
@@ -111,16 +270,5 @@ service:
       errors:
         - global.ValidationError
         - global.NotFoundError
+        - global.ConflictError
         - messages.MessageRejectedError
-
-    update:
-      method: PATCH
-      path: /{message_id}
-      display-name: Update Message
-      path-parameters:
-        message_id: messages.MessageId
-      request: messages.UpdateMessageRequest
-      response: messages.Message
-      errors:
-        - global.ValidationError
-        - global.NotFoundError

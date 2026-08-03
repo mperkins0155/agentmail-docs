@@ -33,27 +33,66 @@ types:
     type: boolean
     docs: Include spam in results.
 
+  IncludeBlocked:
+    type: boolean
+    docs: Include blocked in results.
+
+  IncludeUnauthenticated:
+    type: boolean
+    docs: Include unauthenticated in results.
+
+  IncludeTrash:
+    type: boolean
+    docs: Include trash in results.
+
   OrganizationId:
     type: string
     docs: ID of organization.
+
+  Query:
+    type: string
+    docs: |
+      Full-text search query. Matched against the sender, recipients, and
+      subject (substring) and the message body (tokenized full text).
 
   ErrorName:
     type: string
     docs: Name of error.
 
+  ErrorMessage:
+    type: string
+    docs: Error message.
+
+  ErrorCode:
+    type: string
+    docs: Stable, machine-readable error code in snake_case (for example, not_found or missing_permission). Branch on this rather than the message text.
+
+  ErrorFix:
+    type: string
+    docs: The concrete next action that resolves the error.
+
+  ErrorDocs:
+    type: string
+    docs: Link to the error reference entry for this code.
+
   ErrorResponse:
     properties:
       name: ErrorName
-      message:
-        type: string
-        docs: Error message.
+      code: optional<ErrorCode>
+      message: ErrorMessage
+      fix: optional<ErrorFix>
+      docs: optional<ErrorDocs>
 
   ValidationErrorResponse:
     properties:
       name: ErrorName
+      code: optional<ErrorCode>
+      message: optional<ErrorMessage>
       errors:
         type: unknown
-        docs: Validation errors.
+        docs: Validation errors. Each entry has a path and a message identifying the invalid field.
+      fix: optional<ErrorFix>
+      docs: optional<ErrorDocs>
 
 errors:
   ValidationError:
@@ -66,4 +105,12 @@ errors:
 
   NotFoundError:
     status-code: 404
+    type: ErrorResponse
+
+  UnprocessableError:
+    status-code: 422
+    type: ErrorResponse
+
+  ConflictError:
+    status-code: 409
     type: ErrorResponse

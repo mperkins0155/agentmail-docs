@@ -3,16 +3,24 @@
 name: api
 
 environments:
-  Production:
+  prod:
     urls:
       Http: https://api.agentmail.to
       Websockets: wss://ws.agentmail.to
-  Development:
+  prod-x402:
     urls:
-      Http: https://api.agentmail.dev
-      Websockets: wss://ws.agentmail.dev
+      Http: https://x402.api.agentmail.to
+      Websockets: wss://x402.ws.agentmail.to
+  prod-mpp:
+    urls:
+      Http: https://mpp.api.agentmail.to
+      Websockets: wss://mpp.ws.agentmail.to
+  eu-prod:
+    urls:
+      Http: https://api.agentmail.eu
+      Websockets: wss://ws.agentmail.eu
 
-default-environment: Production
+default-environment: prod
 
 base-path: /v0
 
@@ -26,3 +34,13 @@ auth-schemes:
 
 error-discrimination:
   strategy: status-code
+
+idempotency-headers:
+  Idempotency-Key:
+    type: optional<string>
+    docs: >-
+      Unique key that makes a send idempotent. A retry carrying the same key
+      returns the original message instead of sending a second email; reusing a
+      key with a different request — different message content, a different
+      sending inbox, or a different send endpoint — returns a 409 conflict.
+      Keys expire 24 hours after the send completes.

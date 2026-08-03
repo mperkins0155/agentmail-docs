@@ -46,6 +46,10 @@ const webhook = await client.webhooks.get("ep_xxx");
 const signingSecret = webhook.secret;
 console.log(`Signing secret: ${signingSecret}`);
 ```
+```bash title="CLI"
+# get webhook details including the signing secret
+agentmail webhooks get --webhook-id ep_xxx
+```
 </CodeBlocks>
 
 <Callout intent="warning" title="Keep your secret safe">
@@ -91,7 +95,13 @@ def webhook_handler():
     except WebhookVerificationError as e:
         return ('', 400)
 
-    # Do something with the message...
+    # handle by event type (msg is the verified payload)
+    if msg.get("event_type") == "message.received":
+        # process incoming email...
+        pass
+    elif msg.get("event_type") == "domain.verified":
+        # enable domain features...
+        pass
 
     return ('', 204)
 
@@ -124,8 +134,12 @@ app.post(
       const wh = new Webhook(secret);
       const msg = wh.verify(payload, headers);
 
-      // Do something with the message...
-      console.log("Webhook verified:", msg);
+      // handle by event type (msg is the verified payload)
+      if (msg.event_type === "message.received") {
+        // process incoming email...
+      } else if (msg.event_type === "domain.verified") {
+        // enable domain features...
+      }
 
       res.status(204).send();
     } catch (err) {
@@ -144,6 +158,65 @@ app.listen(port, () => {
 <Callout intent="info" title="Raw body required">
 Signature verification requires the exact request body. If you're using body-parsing middleware (like `express.json()`), make sure to capture the raw body before parsing, or use `express.raw()` for your webhook endpoint.
 </Callout>
+
+## Copy for Cursor / Claude
+
+Copy one of the blocks below into Cursor or Claude for webhook verification in one shot.
+
+<CodeBlocks>
+  ```python title="Python"
+  """
+  AgentMail Webhook Verification — copy into Cursor/Claude.
+
+  Use Svix: pip install svix. Get secret from webhooks.get(webhook_id).secret (starts whsec_).
+  Headers: svix-id, svix-timestamp, svix-signature. Use request.get_data() (raw body), not request.json.
+  """
+  from flask import Flask, request
+  from svix.webhooks import Webhook, WebhookVerificationError
+
+  app = Flask(__name__)
+  secret = "whsec_..."  # from client.webhooks.get(id).secret
+
+  @app.route("/webhooks", methods=["POST"])
+  def handler():
+    try:
+      wh = Webhook(secret)
+      msg = wh.verify(request.get_data(), request.headers)
+      if msg.get("event_type") == "message.received":
+        pass  # process
+      return "", 204
+    except WebhookVerificationError:
+      return "", 400
+  ```
+
+  ```typescript title="TypeScript"
+  /**
+   * AgentMail Webhook Verification — copy into Cursor/Claude.
+   *
+   * Use Svix: npm install svix. Secret from webhooks.get(id).secret.
+   * Use express.raw({ type: "application/json" }) — NOT express.json(). Verify before parsing.
+   */
+  import express from "express";
+  import { Webhook } from "svix";
+
+  const app = express();
+  const secret = process.env.AGENTMAIL_WEBHOOK_SECRET;
+  if (!secret) {
+    throw new Error("AGENTMAIL_WEBHOOK_SECRET environment variable is required");
+  }
+
+  app.post("/webhooks", express.raw({ type: "application/json" }), (req, res) => {
+    try {
+      const wh = new Webhook(secret);
+      const msg = wh.verify(req.body, req.headers as Record<string, string>);
+      if (msg.event_type === "message.received") { /* process */ }
+      res.status(204).send();
+    } catch {
+      res.status(400).send();
+    }
+  });
+  ```
+</CodeBlocks>
 
 ## Testing Locally with ngrok
 
@@ -180,7 +253,13 @@ def webhook_handler():
         print(f"Verification failed: {e}")
         return ('', 400)
 
-    # Do something with the message...
+    # handle by event type (msg is the verified payload)
+    if msg.get("event_type") == "message.received":
+        # process incoming email...
+        pass
+    elif msg.get("event_type") == "domain.verified":
+        # enable domain features...
+        pass
 
     return ('', 204)
 
@@ -212,8 +291,12 @@ app.post(
       const wh = new Webhook(secret);
       const msg = wh.verify(payload, headers);
 
-      // Do something with the message...
-      console.log("Webhook verified:", msg);
+      // handle by event type (msg is the verified payload)
+      if (msg.event_type === "message.received") {
+        // process incoming email...
+      } else if (msg.event_type === "domain.verified") {
+        // enable domain features...
+      }
 
       res.status(204).send();
     } catch (err) {
