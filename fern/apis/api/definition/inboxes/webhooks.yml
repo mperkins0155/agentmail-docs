@@ -1,0 +1,122 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: ../__package__.yml
+  inboxes: __package__.yml
+  webhooks: ../webhooks/__package__.yml
+
+service:
+  url: Http
+  base-path: /inboxes/{inbox_id}/webhooks
+  path-parameters:
+    inbox_id: inboxes.InboxId
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List Webhooks
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes webhooks list --inbox-id <inbox_id>
+        ```
+      request:
+        name: InboxListWebhooksRequest
+        query-parameters:
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          ascending: optional<global.Ascending>
+      response: webhooks.ListWebhooksResponse
+
+    get:
+      method: GET
+      path: /{webhook_id}
+      display-name: Get Webhook
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes webhooks get --inbox-id <inbox_id> --webhook-id <webhook_id>
+        ```
+      path-parameters:
+        webhook_id: webhooks.WebhookId
+      response: webhooks.Webhook
+      errors:
+        - global.NotFoundError
+
+    getHeaders:
+      method: GET
+      path: /{webhook_id}/headers
+      display-name: Get Webhook Headers
+      docs: |
+        List the names of custom HTTP headers included with deliveries to this inbox-scoped webhook.
+        Header values are write-only and are never returned.
+      path-parameters:
+        webhook_id: webhooks.WebhookId
+      response: webhooks.WebhookHeaderNamesResponse
+      errors:
+        - global.NotFoundError
+
+    create:
+      method: POST
+      path: ""
+      display-name: Create Webhook
+      docs: |
+        Create a webhook scoped to this inbox.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes webhooks create --inbox-id <inbox_id> --url https://example.com/webhook --event-types message.received
+        ```
+      request: webhooks.CreateInboxWebhookRequest
+      response: webhooks.Webhook
+      errors:
+        - global.ValidationError
+
+    update:
+      method: PATCH
+      path: /{webhook_id}
+      display-name: Update Webhook
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes webhooks update --inbox-id <inbox_id> --webhook-id <webhook_id> --event-types message.received
+        ```
+      path-parameters:
+        webhook_id: webhooks.WebhookId
+      request: webhooks.UpdateInboxWebhookRequest
+      response: webhooks.Webhook
+      errors:
+        - global.NotFoundError
+        - global.ValidationError
+
+    updateHeaders:
+      method: PATCH
+      path: /{webhook_id}/headers
+      display-name: Update Webhook Headers
+      docs: |
+        Atomically set, replace, or remove custom HTTP headers included with deliveries to this
+        inbox-scoped webhook. Header values remain write-only.
+      path-parameters:
+        webhook_id: webhooks.WebhookId
+      request: webhooks.UpdateWebhookHeadersRequest
+      response:
+        status-code: 204
+      errors:
+        - global.NotFoundError
+        - global.ValidationError
+
+    delete:
+      method: DELETE
+      path: /{webhook_id}
+      display-name: Delete Webhook
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes webhooks delete --inbox-id <inbox_id> --webhook-id <webhook_id>
+        ```
+      path-parameters:
+        webhook_id: webhooks.WebhookId
+      errors:
+        - global.NotFoundError

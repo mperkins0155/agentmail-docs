@@ -1,0 +1,146 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: ../__package__.yml
+  inboxes: __package__.yml
+  messages: ../messages.yml
+  drafts: ../drafts.yml
+  attachments: ../attachments.yml
+
+service:
+  url: Http
+  base-path: /inboxes/{inbox_id}/drafts
+  path-parameters:
+    inbox_id: inboxes.InboxId
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List Drafts
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts list --inbox-id <inbox_id>
+        ```
+      request:
+        name: ListDraftsRequest
+        query-parameters:
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          labels: optional<global.Labels>
+          before: optional<global.Before>
+          after: optional<global.After>
+          ascending: optional<global.Ascending>
+      response: drafts.ListDraftsResponse
+      errors:
+        - global.NotFoundError
+
+    get:
+      method: GET
+      path: /{draft_id}
+      display-name: Get Draft
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts get --inbox-id <inbox_id> --draft-id <draft_id>
+        ```
+      path-parameters:
+        draft_id: drafts.DraftId
+      response: drafts.Draft
+      errors:
+        - global.NotFoundError
+
+    getAttachment:
+      method: GET
+      path: /{draft_id}/attachments/{attachment_id}
+      display-name: Get Attachment
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts get-attachment --inbox-id <inbox_id> --draft-id <draft_id> --attachment-id <attachment_id>
+        ```
+      path-parameters:
+        draft_id: drafts.DraftId
+        attachment_id: attachments.AttachmentId
+      response: attachments.AttachmentResponse
+      errors:
+        - global.NotFoundError
+
+    create:
+      method: POST
+      path: ""
+      display-name: Create Draft
+      docs: |
+        Create a draft. Supply `in_reply_to` to create a reply draft (with
+        `reply_all` to address the whole thread), whose recipients, subject, and
+        threading are derived from the referenced message, or `forward_of` to
+        create a forward draft, which derives the subject, threading, and
+        forwarded content from the source but keeps recipients caller-supplied.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts create --inbox-id <inbox_id> --to recipient@example.com --subject "Draft subject" --text "Draft body"
+        ```
+      request: drafts.CreateDraftRequest
+      response: drafts.Draft
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+
+    update:
+      method: PATCH
+      path: /{draft_id}
+      display-name: Update Draft
+      docs: |
+        Edit fields on an existing draft. Passing `null` clears a field (or `[]`
+        for a recipient field); `send_at: null` un-schedules a scheduled draft.
+        A draft that is already being sent cannot be edited.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts update --inbox-id <inbox_id> --draft-id <draft_id> --subject "Updated subject"
+        ```
+      path-parameters:
+        draft_id: drafts.DraftId
+      request: drafts.UpdateDraftRequest
+      response: drafts.Draft
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+
+    delete:
+      method: DELETE
+      path: /{draft_id}
+      display-name: Delete Draft
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts delete --inbox-id <inbox_id> --draft-id <draft_id>
+        ```
+      path-parameters:
+        draft_id: drafts.DraftId
+      errors:
+        - global.NotFoundError
+
+    send:
+      method: POST
+      path: /{draft_id}/send
+      display-name: Send Draft
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes drafts send --inbox-id <inbox_id> --draft-id <draft_id>
+        ```
+      path-parameters:
+        draft_id: drafts.DraftId
+      request: messages.UpdateMessageRequest
+      response: messages.SendMessageResponse
+      errors:
+        - global.NotFoundError
+        - global.ValidationError
+        - global.ConflictError
+        - messages.MessageRejectedError

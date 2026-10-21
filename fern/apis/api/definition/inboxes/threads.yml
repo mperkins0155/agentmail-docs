@@ -1,0 +1,147 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: ../__package__.yml
+  inboxes: __package__.yml
+  threads: ../threads.yml
+  attachments: ../attachments.yml
+
+service:
+  url: Http
+  base-path: /inboxes/{inbox_id}/threads
+  path-parameters:
+    inbox_id: inboxes.InboxId
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List Threads
+      docs: |
+        Lists threads in the inbox, most recent first. Pass `senders`,
+        `recipients`, or `subject` to filter by substring. Filtered requests are
+        served by search, which caps `limit` at 100. For relevance-ranked
+        full-text search, use `Search Threads`.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes threads list --inbox-id <inbox_id>
+        ```
+      request:
+        name: ListThreadsRequest
+        query-parameters:
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          labels: optional<global.Labels>
+          before: optional<global.Before>
+          after: optional<global.After>
+          ascending: optional<global.Ascending>
+          include_spam: optional<global.IncludeSpam>
+          include_blocked: optional<global.IncludeBlocked>
+          include_unauthenticated: optional<global.IncludeUnauthenticated>
+          include_trash: optional<global.IncludeTrash>
+          senders:
+            type: optional<list<string>>
+            docs: Filter to threads whose senders contain this value (substring match). Repeatable; all values must match.
+          recipients:
+            type: optional<list<string>>
+            docs: Filter to threads whose recipients contain this value (substring match). Repeatable; all values must match.
+          subject:
+            type: optional<list<string>>
+            docs: Filter to threads whose subject contains this value (substring match). Repeatable; all values must match.
+      response: threads.ListThreadsResponse
+      errors:
+        - global.NotFoundError
+
+    search:
+      method: GET
+      path: /search
+      display-name: Search Threads
+      docs: |
+        Full-text search across threads in the inbox, ranked by relevance. The
+        query is matched against senders, recipients, and subject (substring)
+        and the message body (tokenized full text). Spam, trash, blocked, and
+        unauthenticated threads are always excluded. `limit` cannot exceed 100.
+      request:
+        name: SearchThreadsRequest
+        query-parameters:
+          q: global.Query
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          before: optional<global.Before>
+          after: optional<global.After>
+      response: threads.SearchThreadsResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+
+    get:
+      method: GET
+      path: /{thread_id}
+      display-name: Get Thread
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes threads get --inbox-id <inbox_id> --thread-id <thread_id>
+        ```
+      path-parameters:
+        thread_id: threads.ThreadId
+      request:
+        name: GetInboxThreadRequest
+        query-parameters:
+          limit:
+            type: optional<global.Limit>
+            docs: Maximum number of messages to return. Cannot exceed 100.
+          page_token:
+            type: optional<global.PageToken>
+            docs: Token returned by the previous response for retrieving the next, older page.
+      response: threads.Thread
+      errors:
+        - global.NotFoundError
+
+    getAttachment:
+      method: GET
+      path: /{thread_id}/attachments/{attachment_id}
+      display-name: Get Attachment
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes threads get-attachment --inbox-id <inbox_id> --thread-id <thread_id> --attachment-id <attachment_id>
+        ```
+      path-parameters:
+        thread_id: threads.ThreadId
+        attachment_id: attachments.AttachmentId
+      response: attachments.AttachmentResponse
+      errors:
+        - global.NotFoundError
+
+    update:
+      method: PATCH
+      path: /{thread_id}
+      display-name: Update Thread
+      docs: Updates thread labels. Cannot add or remove system labels (sent, received, bounced, etc.). Rejects requests with a `422` for threads with 100 or more messages.
+      path-parameters:
+        thread_id: threads.ThreadId
+      request: threads.UpdateThreadRequest
+      response: threads.UpdateThreadResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.UnprocessableError
+
+    delete:
+      method: DELETE
+      path: /{thread_id}
+      display-name: Delete Thread
+      docs: |
+        Permanently deletes a thread and all of its messages.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes threads delete --inbox-id <inbox_id> --thread-id <thread_id>
+        ```
+      path-parameters:
+        thread_id: threads.ThreadId
+      errors:
+        - global.NotFoundError

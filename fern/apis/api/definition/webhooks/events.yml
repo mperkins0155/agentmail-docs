@@ -1,0 +1,180 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  events: ../events.yml
+
+types:
+  SvixId:
+    type: string
+    docs: ID of webhook message.
+
+  SvixTimestamp:
+    type: datetime
+    docs: Timestamp of webhook message.
+
+  SvixSignature:
+    type: string
+    docs: Signature of webhook message.
+
+webhooks:
+  messageReceived:
+    display-name: Message Received
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageReceivedEvent
+
+  messageSecurityCompleted:
+    display-name: Message Security Completed
+    availability: beta
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageSecurityCompletedEvent
+
+  messageSecurityReview:
+    display-name: Message Security Review
+    availability: beta
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageSecurityReviewEvent
+
+  messageSecurityOverride:
+    display-name: Message Security Override
+    availability: beta
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageSecurityOverrideEvent
+
+  messageSent:
+    display-name: Message Sent
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageSentEvent
+
+  messageDelivered:
+    display-name: Message Delivered
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageDeliveredEvent
+
+  messageBounced:
+    display-name: Message Bounced
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageBouncedEvent
+
+  messageComplained:
+    display-name: Message Complained
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageComplainedEvent
+
+  messageRejected:
+    display-name: Message Rejected
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageRejectedEvent
+
+  messageOpened:
+    display-name: Message Opened
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.MessageOpenedEvent
+
+  domainVerified:
+    display-name: Domain Verified
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.DomainVerifiedEvent
+
+  calendarEventCreated:
+    availability: beta
+    display-name: Calendar Event Created
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.CalendarEventCreatedEvent
+
+  calendarEventUpdated:
+    availability: beta
+    display-name: Calendar Event Updated
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.CalendarEventUpdatedEvent
+
+  calendarEventDeleted:
+    availability: beta
+    display-name: Calendar Event Deleted
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.CalendarEventDeletedEvent
+
+  calendarEventResponded:
+    availability: beta
+    display-name: Calendar Event Responded
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.CalendarEventRespondedEvent
+
+  calendarEventStarting:
+    availability: beta
+    display-name: Calendar Event Starting
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.CalendarEventStartingEvent
+
+  calendarEventEnding:
+    availability: beta
+    display-name: Calendar Event Ending
+    method: POST
+    headers:
+      svix-id: SvixId
+      svix-signature: SvixSignature
+      svix-timestamp: SvixTimestamp
+    payload: events.CalendarEventEndingEvent

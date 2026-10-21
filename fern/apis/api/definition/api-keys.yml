@@ -1,0 +1,505 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: __package__.yml
+
+types:
+  ApiKeyId:
+    type: string
+    docs: ID of api key.
+
+  Prefix:
+    type: string
+    docs: Prefix of api key.
+
+  Name:
+    type: string
+    docs: Name of api key.
+
+  CreatedAt:
+    type: datetime
+    docs: Time at which api key was created.
+
+  UpdatedAt:
+    type: datetime
+    docs: Time at which api key was last updated.
+
+  ExpiresAt:
+    type: datetime
+    docs: Time at which api key expires. Omitted when it does not expire.
+
+  UsedAt:
+    type: datetime
+    docs: Time at which api key was last used.
+
+  PodScopeId:
+    type: string
+    docs: Pod ID the api key is scoped to. If set, the key can only access resources within this pod.
+
+  InboxScopeId:
+    type: string
+    docs: Inbox ID the api key is scoped to. If set, the key can only access resources within this inbox.
+
+  PublicKeyClientId:
+    type: string
+    docs: |
+      Caller-chosen alias for a public key, unique within the organization and
+      reusable after deletion. Accepted in place of `api_key_id` on get, update,
+      and delete. Registration is idempotent on it: the same alias returns the
+      existing key, a conflicting one returns `409`. URL-safe; no slash or `@`.
+
+  AcceptDisclosure:
+    type: boolean
+    docs: |
+      Accept the app's disclosure on the agent's behalf, skipping the
+      first-use disclosure page. Requires `app_share_owner` when owner
+      scopes are involved.
+
+  PublicJwkCoordinate:
+    type: string
+    validation:
+      minLength: 43
+      maxLength: 43
+      pattern: "^[A-Za-z0-9_-]{43}$"
+    docs: A 32-byte P-256 coordinate encoded as unpadded base64url.
+
+  PublicJwk:
+    docs: |
+      A public P-256 JWK. The object accepts exactly `kty`, `crv`, `x`, and `y`.
+      Private key material such as `d`, embedded key IDs, and all other members
+      are rejected. The server also rejects coordinates that are not a point on
+      P-256.
+    properties:
+      kty: literal<"EC">
+      crv: literal<"P-256">
+      x: PublicJwkCoordinate
+      y: PublicJwkCoordinate
+
+  PublicKeyMaterial:
+    docs: Registered public key material and its server-computed RFC 7638 thumbprint.
+    properties:
+      jwk: PublicJwk
+      fingerprint:
+        type: string
+        validation:
+          minLength: 43
+          maxLength: 43
+          pattern: "^[A-Za-z0-9_-]{43}$"
+        docs: RFC 7638 SHA-256 JWK thumbprint encoded as unpadded base64url.
+
+  PublicKeyCredential:
+    docs: |
+      An AgentID sign-in credential, scoped like a bearer key; `api_key_id` is
+      the JWS `kid`. A sign-in key carries `status`, gains `public_key` once
+      the client has proved it, expires 30 days after
+      activation, and carries exactly `app_connect` and
+      `app_share_owner`, snapshotted from the bearer key that created it
+      and enforced from the key itself.
+    properties:
+      type: literal<"public_key">
+      api_key_id: ApiKeyId
+      client_id: optional<PublicKeyClientId>
+      name: Name
+      public_key: optional<PublicKeyMaterial>
+      pod_id: optional<PodScopeId>
+      inbox_id: optional<InboxScopeId>
+      status: optional<PublicKeyStatus>
+      used_at: optional<UsedAt>
+      permissions: ApiKeyPermissions
+      created_by: ApiKeyCreator
+      created_at: CreatedAt
+      updated_at: UpdatedAt
+      expires_at: optional<ExpiresAt>
+
+  CreatePublicKeyRequest:
+    docs: |
+      Registers a public P-256 JWK at the route's scope. `type` and
+      `api_key_id` are server-owned. `name` defaults to
+      `AgentID key {first eight fingerprint characters}`; `permissions`
+      defaults to the registering key's, and only grants it holds may be
+      true; `expires_at` defaults to the registering key's expiry and is
+      independent of that key afterward.
+    properties:
+      public_key: PublicJwk
+      client_id: optional<PublicKeyClientId>
+      name: optional<Name>
+      permissions: optional<ApiKeyPermissions>
+      expires_at: optional<ExpiresAt>
+
+  AuthToken:
+    type: string
+    validation:
+      minLength: 22
+      maxLength: 22
+      pattern: "^[A-Za-z0-9_-]{22}$"
+    docs: Token identifying one pending AgentID sign-in, read from the sign-in action on exactly `https://auth.agentid.com`.
+
+  ApiKeyPermissions:
+    docs: Granular permissions for the API key. When ommitted all permissions are granted. Otherwise, only permissions set to true are granted.
+    properties:
+      inbox_read:
+        type: optional<boolean>
+        docs: Read inbox details.
+      inbox_create:
+        type: optional<boolean>
+        docs: Create new inboxes.
+      inbox_update:
+        type: optional<boolean>
+        docs: Update inbox settings.
+      inbox_delete:
+        type: optional<boolean>
+        docs: Delete inboxes.
+      message_read:
+        type: optional<boolean>
+        docs: Read messages. Also required to read threads.
+      message_reply:
+        type: optional<boolean>
+        docs: Reply and reply-all when the request is signed with a registered public key. Bearer keys reply with `message_send`.
+      message_send:
+        type: optional<boolean>
+        docs: Send messages.
+      message_update:
+        type: optional<boolean>
+        docs: Update message labels. Also required to update threads.
+      message_delete:
+        type: optional<boolean>
+        docs: Delete messages. Also required to delete threads.
+      agent_armor_release:
+        type: optional<boolean>
+        docs: |
+          Release mail Agent Armor holds for review. Opt-in: no key has it unless it was granted explicitly, even one
+          without a `permissions` object. See [Permissions](/permissions#agent-armor).
+      label_spam_read:
+        type: optional<boolean>
+        docs: Access messages labeled spam.
+      label_blocked_read:
+        type: optional<boolean>
+        docs: Access messages labeled blocked.
+      label_unauthenticated_read:
+        type: optional<boolean>
+        docs: Access messages labeled unauthenticated.
+      label_trash_read:
+        type: optional<boolean>
+        docs: Access messages labeled trash.
+      draft_read:
+        type: optional<boolean>
+        docs: Read drafts.
+      draft_create:
+        type: optional<boolean>
+        docs: Create drafts.
+      draft_update:
+        type: optional<boolean>
+        docs: Update drafts.
+      draft_delete:
+        type: optional<boolean>
+        docs: Delete drafts.
+      draft_send:
+        type: optional<boolean>
+        docs: Send drafts.
+      webhook_read:
+        type: optional<boolean>
+        docs: Read webhook configurations.
+      webhook_create:
+        type: optional<boolean>
+        docs: Create webhooks.
+      webhook_update:
+        type: optional<boolean>
+        docs: Update webhooks.
+      webhook_delete:
+        type: optional<boolean>
+        docs: Delete webhooks.
+      domain_read:
+        type: optional<boolean>
+        docs: Read domain details.
+      domain_create:
+        type: optional<boolean>
+        docs: Create domains.
+      domain_update:
+        type: optional<boolean>
+        docs: Update domains.
+      domain_delete:
+        type: optional<boolean>
+        docs: Delete domains.
+      list_entry_read:
+        type: optional<boolean>
+        docs: Read list entries.
+      list_entry_create:
+        type: optional<boolean>
+        docs: Create list entries.
+      list_entry_delete:
+        type: optional<boolean>
+        docs: Delete list entries.
+      metrics_read:
+        type: optional<boolean>
+        docs: Read metrics.
+      api_key_read:
+        type: optional<boolean>
+        docs: Read API keys.
+      api_key_create:
+        type: optional<boolean>
+        docs: Create API keys.
+      api_key_update:
+        type: optional<boolean>
+        docs: Update API keys.
+      api_key_delete:
+        type: optional<boolean>
+        docs: Delete API keys.
+      app_connect:
+        type: optional<boolean>
+        docs: |
+          Sign in to apps as an inbox: connect an app, authorize an inbox, and mint the
+          sign-in keys. Omitted on a new bearer key means false, whatever else the key holds.
+      app_share_owner:
+        type: optional<boolean>
+        docs: |
+          Share the organization owner's name and email with apps at sign-in. One permission
+          for both values.
+      account_update:
+        type: optional<boolean>
+        docs: |
+          Update accounts: disable or re-enable an inbox's sign-in at an app. Reading accounts
+          needs only `inbox_read`.
+      pod_read:
+        type: optional<boolean>
+        docs: Read pods.
+      pod_create:
+        type: optional<boolean>
+        docs: Create pods.
+      pod_update:
+        type: optional<boolean>
+        docs: Update pods.
+      pod_delete:
+        type: optional<boolean>
+        docs: Delete pods.
+      calendar_read:
+        type: optional<boolean>
+        docs: Read inbox calendar settings.
+      calendar_update:
+        type: optional<boolean>
+        docs: Update inbox calendar settings.
+      calendar_event_read:
+        type: optional<boolean>
+        docs: Read calendar events, and receive `calendar.event.*` webhook and WebSocket events.
+      calendar_event_create:
+        type: optional<boolean>
+        docs: Create calendar events.
+      calendar_event_update:
+        type: optional<boolean>
+        docs: Update calendar events and respond to invitations.
+      calendar_event_delete:
+        type: optional<boolean>
+        docs: Delete calendar events.
+      file_read:
+        type: optional<boolean>
+        docs: Reserved; not released yet.
+      file_create:
+        type: optional<boolean>
+        docs: Reserved; not released yet.
+      file_update:
+        type: optional<boolean>
+        docs: Reserved; not released yet.
+      file_delete:
+        type: optional<boolean>
+        docs: Reserved; not released yet.
+
+  BearerApiKey:
+    docs: An API key presented as a bearer token in the `Authorization` header.
+    properties:
+      type: literal<"bearer">
+      api_key_id: ApiKeyId
+      prefix: Prefix
+      name: Name
+      pod_id: optional<PodScopeId>
+      inbox_id: optional<InboxScopeId>
+      used_at: optional<UsedAt>
+      permissions: optional<ApiKeyPermissions>
+      created_at: CreatedAt
+      updated_at: UpdatedAt
+      expires_at: optional<ExpiresAt>
+
+  ApiKeyCreator:
+    docs: The bearer API key that created the credential. Provenance only; the credential outlives it.
+    properties:
+      api_key_id: ApiKeyId
+
+  PublicKeyStatus:
+    enum:
+      - pending
+      - active
+    docs: |
+      Lifecycle of a sign-in key: `pending` until the client finishes
+      creating it on the AgentID page, `active` once it can sign in as the
+      inbox. Absent on a registered key.
+
+  ApiKey:
+    docs: |
+      One credential of any family. `type` is `bearer` or `public_key`. A
+      public key carrying `status` is a sign-in key; one without it is a
+      registered signing key.
+    discriminated: false
+    union:
+      - BearerApiKey
+      - PublicKeyCredential
+
+  ApiKeyType:
+    enum:
+      - bearer
+      - public_key
+
+  CreateApiKeyResponse:
+    properties:
+      api_key_id: ApiKeyId
+      api_key:
+        type: string
+        docs: API key.
+      prefix: Prefix
+      name: Name
+      pod_id: optional<PodScopeId>
+      inbox_id: optional<InboxScopeId>
+      permissions: optional<ApiKeyPermissions>
+      created_at: CreatedAt
+      expires_at: optional<ExpiresAt>
+
+  ListApiKeysResponse:
+    properties:
+      count: global.Count
+      next_page_token: optional<global.PageToken>
+      api_keys:
+        type: list<ApiKey>
+        docs: |
+          Every credential family, ordered by `created_at`. `type` restricts
+          to one family.
+
+  ApiKeyMutableFields:
+    docs: The fields a caller may set on a bearer key at creation and change afterward.
+    properties:
+      name: optional<Name>
+      permissions: optional<ApiKeyPermissions>
+
+  CreateBearerApiKeyRequest:
+    docs: |
+      `expires_at` must be in the future and is immutable once the key exists.
+      Omitted, the new key inherits the authenticating key's expiry, and never
+      expires only when that key never does. A key cannot create one that
+      outlives it: an `expires_at` later than the authenticating key's own
+      returns `403`.
+    extends: ApiKeyMutableFields
+    properties:
+      expires_at: optional<ExpiresAt>
+
+  CreateApiKeyRequest:
+    docs: |
+      A body with `public_key` registers a public-key credential; any other
+      body mints a bearer key.
+    discriminated: false
+    union:
+      - CreateBearerApiKeyRequest
+      - CreatePublicKeyRequest
+
+  CreateApiKeyResult:
+    docs: The secret-bearing bearer key, or the registered public key without any secret.
+    discriminated: false
+    union:
+      - CreateApiKeyResponse
+      - PublicKeyCredential
+
+  UpdateApiKeyRequest:
+    docs: |
+      Rename a credential or change its permissions. Key material, type,
+      scope, and expiry are immutable.
+    extends: ApiKeyMutableFields
+
+service:
+  url: Http
+  base-path: /api-keys
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List API Keys
+      docs: |
+        Lists every credential, newest first. Filter one family with `type`.
+        Page to token exhaustion: a page can be empty and still carry a
+        `next_page_token`.
+
+        **CLI:**
+        ```bash
+        agentmail api-keys list
+        ```
+      request:
+        name: ListApiKeysRequest
+        query-parameters:
+          type:
+            type: optional<ApiKeyType>
+            docs: Restrict the list to one credential family. Omit for every family.
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          ascending: optional<global.Ascending>
+      response: ListApiKeysResponse
+
+    get:
+      method: GET
+      path: /{api_key_id}
+      display-name: Get API Key
+      docs: |
+        Returns one credential of any family. Public keys also resolve by
+        `client_id`. Poll a sign-in key until `status` is `active`.
+      path-parameters:
+        api_key_id: ApiKeyId
+      response: ApiKey
+      errors:
+        - global.NotFoundError
+
+    create:
+      method: POST
+      path: ""
+      display-name: Create API Key
+      docs: |
+        Creates a bearer key, or registers a public key when the body carries
+        `public_key`. The route selects the scope. Bearer secrets are returned once.
+
+        **CLI:**
+        ```bash
+        agentmail api-keys create --name "My Key"
+        ```
+      request: CreateApiKeyRequest
+      response: CreateApiKeyResult
+      errors:
+        - global.ValidationError
+        - global.ConflictError
+
+    update:
+      method: PATCH
+      path: /{api_key_id}
+      display-name: Update API Key
+      docs: |
+        Renames a credential or changes its permissions. Public keys also resolve
+        by `client_id`; a sign-in key accepts only `app_connect` and
+        `app_share_owner`.
+      path-parameters:
+        api_key_id: ApiKeyId
+      request: UpdateApiKeyRequest
+      response: ApiKey
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+
+    delete:
+      method: DELETE
+      path: /{api_key_id}
+      display-name: Delete API Key
+      docs: |
+        Deletes one credential of any family. A pending sign-in key is
+        cancelled; an active one is revoked. Public keys also resolve by `client_id`.
+
+        **CLI:**
+        ```bash
+        agentmail api-keys delete --api-key-id <api_key_id>
+        ```
+      path-parameters:
+        api_key_id: ApiKeyId
+      errors:
+        - global.NotFoundError
+

@@ -1,0 +1,47 @@
+---
+title: Vercel
+subtitle: Install AgentMail from the Vercel Marketplace and call it from your Vercel functions
+slug: integrations/vercel
+description: Provision AgentMail from the Vercel Marketplace and authenticate your Vercel functions with the provisioned API key
+---
+
+## Overview
+
+AgentMail is a native integration on the [Vercel Marketplace](https://vercel.com/marketplace/agentmail). Installing it from Vercel provisions an AgentMail organization for your team without a separate signup, puts the usage on your Vercel invoice, and lets you open the AgentMail console from the Vercel dashboard.
+
+Installing the integration injects `AGENTMAIL_API_KEY` into the connected projects. It is a normal AgentMail API key, so your Vercel functions authenticate with it like any other AgentMail client.
+
+## Install
+
+1. In the Vercel dashboard open **Integrations**, then **Marketplace**, find **AgentMail** and click **Install**. From a terminal, `vercel integration add agentmail` does the same.
+2. Pick a plan and name the resource. One resource is one AgentMail organization; connect it to every project that should share its inboxes.
+3. Run `vercel env pull .env.local` in each connected project to get the injected variables locally.
+
+Plan changes and billing live in the Vercel dashboard under the resource. **Open in AgentMail** on the resource page signs you into the AgentMail console for that organization.
+
+## Use the provisioned API key
+
+`AGENTMAIL_API_KEY` is injected into every connected project when you install the integration, and `vercel env pull .env.local` brings it to your machine. Use it like any other AgentMail key:
+
+<CodeBlocks>
+```typescript title="TypeScript"
+import { AgentMailClient } from "agentmail";
+
+const client = new AgentMailClient({ apiKey: process.env.AGENTMAIL_API_KEY });
+const inbox = await client.inboxes.create({ clientId: "support-agent" });
+```
+
+```python title="Python"
+from agentmail import AgentMail
+from agentmail.inboxes import CreateInboxRequest
+
+client = AgentMail()  # reads AGENTMAIL_API_KEY
+inbox = client.inboxes.create(request=CreateInboxRequest(client_id="support-agent"))
+```
+</CodeBlocks>
+
+Because it is a long-lived secret, treat it as one: mark the resource **Production only** in its Vercel settings if preview and development deployments do not need it.
+
+<Note>
+Everything else about AgentMail is the same on Vercel: see the [inboxes](https://docs.agentmail.to/api-reference/inboxes/create) and [webhooks](https://docs.agentmail.to/webhooks-overview) references, and the [Vercel AI SDK example](https://agentmail.to/build/vercel) for sending email from an agent tool.
+</Note>

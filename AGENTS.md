@@ -4,7 +4,7 @@ Instructions for creating changelog entries (e.g. when asked in #github-prs with
 
 ## When you're invoked
 
-- **API changes:** A PR that touches `fern/definition/**` triggers a GitHub Action. It posts an oasdiff (technical diff) on the PR and uploads it as the `api-changelog-diff` artifact. Someone may tag you with that PR or paste the diff.
+- **API changes:** A PR that touches `fern/apis/api/definition/**` triggers a GitHub Action. It posts an oasdiff (technical diff) on the PR and uploads it as the `api-changelog-diff` artifact. Someone may tag you with that PR or paste the diff.
 - **Manual:** For non-API changes, create `fern/changelog/YYYY-MM-DD.mdx` and follow the structure below. Use `fern/changelog/TEMPLATE.mdx` as reference.
 - **Output:** Create or edit files in `fern/changelog/`. File name: `YYYY-MM-DD.mdx` (same day = add suffix e.g. `2026-01-30-metrics.mdx`).
 
@@ -55,6 +55,11 @@ Instructions for creating Knowledge Base articles in `fern/pages/knowledge-base/
 - **No broken internal links.** Before adding a link to another docs page, verify the target page actually exists. If it doesn't, don't add the link.
 - **Verify correctness.** After finishing each article, re-read it. Search online if needed to confirm provider-specific details (e.g., DNS propagation times, UI field names).
 - **Don't invent features.** Only document what AgentMail actually supports. If unsure whether a feature works a certain way, leave it out rather than guess.
+- **Never publish moderation thresholds.** No bounce or complaint percentages, time windows, or minimum send counts behind suspensions or other moderation. Say AgentMail weighs signals such as bounces and complaints.
+- **Support address is `support@agentmail.cc`.** Not `support@agentmail.to`. The status page is `https://status.agentmail.to`.
+- **Don't document organization deletion.** Per-resource deletes (inboxes, domains, pods, API keys) are fine.
+- **AgentMail does not support cold outreach.** Don't write how-to guides for it, and don't recommend third-party warm-up tools.
+- **Route security and compliance questions to support.** For vulnerability reports, HIPAA, encryption at rest, and DPA requests, point readers to `support@agentmail.cc` and make no claims.
 
 ## File structure
 
@@ -79,20 +84,20 @@ slug: knowledge-base/article-slug
 Match Resend KB quality. Articles should include:
 
 - **Tables** for DNS record fields, comparison matrices, etc.
-- **Code examples** using the actual AgentMail SDK (Python primary, verify API signatures against `fern/definition/` or existing docs)
+- **Code examples** using the actual AgentMail SDK (Python primary, verify API signatures against `fern/apis/api/definition/` or existing docs)
 - **Warnings/Notes** using `<Warning>` and `<Note>` Fern components for provider-specific gotchas
 - **Troubleshooting section** ("Common Issues") for DNS guides and similar
 - **Verification section** for setup guides (propagation times, how to confirm success)
 
 ## Code accuracy
 
-- Always verify SDK method signatures against `fern/pages/core-concepts/` docs or `fern/definition/` YAML
+- Always verify SDK method signatures against `fern/pages/core-concepts/` docs or `fern/apis/api/definition/` YAML
 - `to`, `cc`, `bcc` are `list<string>` on messages
 - Webhook payloads use `payload["message"]` for `message.received` events (not `payload["data"]`)
 - WebSocket SDK uses `client.websockets.connect()` with typed events (`Subscribe`, `Subscribed`, `MessageReceivedEvent`)
 - Reply API: `client.inboxes.messages.reply(inbox_id=..., message_id=..., text=..., html=...)`
 - Labels: `client.inboxes.messages.update(..., add_labels=[...], remove_labels=[...])`
-- Lists: `client.lists.create(direction, type, entry=...)` where direction is "send"/"receive" and type is "allow"/"block"
+- Lists: `client.lists.create(direction, type, entry=...)` where direction is "send", "receive" or "reply" and type is "allow"/"block"
 - Drafts: `client.inboxes.drafts.create(inbox_id=..., to=[...], ...)` then `client.inboxes.drafts.send(inbox_id=..., draft_id=...)`
 
 ## Reference

@@ -7,7 +7,7 @@ description: >-
 ---
 
 <llms-only>
-> Everything you need to onboard your AI agent to AgentMail — the email platform built for AI agents.
+> Everything you need to onboard your AI agent to AgentMail, the first email provider built for AI agents.
 </llms-only>
 
 If you're developing with AI, AgentMail offers several resources to improve your experience.
@@ -66,10 +66,13 @@ agentmail agent verify --otp-code 123456
   The sign-up endpoint is idempotent. Calling it again with the same email rotates the API key and resends the OTP if expired.
 </Info>
 
-
 <Warning>
-  **Unverified accounts can only send email to the signup address.** Until you complete OTP verification, sends to any other address are rejected with a `403` carrying `code: "message_rejected"`, whose `fix` explains that sending is restricted until verification and points at `POST /v0/agent/verify`. Always call `agent.verify()` before sending to external recipients. See the [Error Reference](/errors#message_rejected).
+  **Unverified accounts can only send email to the attached human.** Until you complete OTP verification, sends to any other address are rejected with a `403` carrying `code: "message_rejected"`, whose `fix` explains that sending is restricted until verification and points at `POST /v0/agent/verify`. An account with no human attached cannot send at all until one is attached with `POST /v0/agent/human`. Always call `agent.verify()` before sending to external recipients. See the [Error Reference](/errors#message_rejected).
 </Warning>
+
+<Note>
+  Unverified accounts are also denied some permissions, such as creating API keys, managing list entries, and creating, updating, or deleting pods. These requests return a `403` with `code: "missing_permission"` until the organization is verified. See [Agent verification](/permissions#agent-verification) for the full list.
+</Note>
 
 <Warning>
   **Some domains cannot be used for agent signup.** Common placeholder domains (e.g., `example.com`) and certain provider-specific domains are blocklisted. If signup fails, use a real email address from your own domain or a standard email provider.
@@ -78,8 +81,73 @@ agentmail agent verify --otp-code 123456
 Alternatively, a human can create an account at [console.agentmail.to](https://console.agentmail.to) and generate an API key from the dashboard.
 
 <Info>
-  AgentMail's free tier includes 3 inboxes and 3,000 emails/month. Your agent can start building immediately.
+  An agent that signs up starts with 1 inbox, no custom domains, and 10 emails per day, which it can send only to the attached human until the organization is verified or claimed. Verifying or claiming moves it to the Free plan: 3 inboxes and 100 emails per day, at first to at most 3 distinct recipients in the first hour, 5 in the first day, and 10 in the first week. No credit card is required, and your agent can start building immediately.
 </Info>
+
+### Sign up without a human email
+
+If your agent doesn't have a human's email yet, leave `human_email` out. The agent still gets an API key and an inbox, but the inbox is **receive-only**: it can receive email and cannot send to anyone.
+
+<CodeBlocks>
+
+```python title="Python"
+client = AgentMail()
+response = client.agent.sign_up(username="my-agent")
+# response.api_key  -> store this durably, it cannot be recovered
+```
+
+```typescript title="TypeScript"
+const client = new AgentMailClient();
+const response = await client.agent.signUp({ username: "my-agent" });
+// response.apiKey  -> store this durably, it cannot be recovered
+```
+
+```bash title="CLI"
+agentmail agent sign-up --username my-agent
+```
+
+</CodeBlocks>
+
+<Warning>
+  **Without a human email, a lost API key cannot be recovered.** Calling sign-up again without `human_email` creates a new organization and inbox, which needs a different `username`: the original username stays with the lost organization. Store the key durably, and attach a human as soon as you can.
+</Warning>
+
+Then connect a human, in either of two ways.
+
+**The human claims the inbox in the Console.** This is available for inboxes in the US region, whose keys start with `am_us_`. The agent gives its API key to the human it works for, over a channel they already use (never by email: anyone can email the agent's inbox). The human opens [console.agentmail.to/claim](https://console.agentmail.to/claim), signs in or signs up, and pastes the key. The agent's organization becomes one the human owns, on the Free plan, sending is unlocked (at first to at most 3 distinct recipients in the first hour, 5 in the first day, and 10 in the first week), and the agent's key keeps working, though it can take up to 5 minutes to pick up the claim. See [How do I claim my agent's inbox?](/knowledge-base/claiming-agent-inbox) for the human's steps and the errors they can see.
+
+If the claim page refuses the human's account because it cannot create another organization, the human already has a Console account. They create an API key for the agent in their organization instead. That key belongs to their organization, not the one the agent signed up into, so the agent creates a new inbox with it, under a different username: the sign-up inbox stays behind, receiving but unable to send unless a different human claims it or is attached.
+
+**The agent attaches the human's email.** A 6-digit OTP is sent to the human, the agent can then email that human, and verifying with the OTP lifts the remaining restrictions:
+
+<CodeBlocks>
+
+```python title="Python"
+client = AgentMail(api_key=response.api_key)
+client.agent.attach_human(human_email="you@example.com")
+client.agent.verify(otp_code="123456")
+```
+
+```typescript title="TypeScript"
+const authedClient = new AgentMailClient({ apiKey: response.apiKey });
+await authedClient.agent.attachHuman({ humanEmail: "you@example.com" });
+await authedClient.agent.verify({ otpCode: "123456" });
+```
+
+```bash title="CLI"
+agentmail agent attach-human --human-email you@example.com
+agentmail agent verify --otp-code 123456
+```
+
+</CodeBlocks>
+
+Once a human is attached, only a Console account whose primary email is that address can claim the inbox, and once the agent is verified it can no longer be claimed. An email address that already has a Console account cannot be attached.
+
+Attaching a human is only possible until the organization is verified. Until then:
+
+- Calling it again with the same email does not rotate the API key. It resends the OTP if it was never delivered, or issues a new one if it expired. While the current OTP is still valid, it keeps that OTP and its attempt count, so if all 10 attempts are used up, wait until the OTP expires (24 hours after it was issued) before calling it again. Any unverified agent can use this to get a new OTP, including one that signed up with a `human_email`.
+- Calling it with a different email replaces the attached human, for example to fix a typo. An organization can replace its human at most 2 times.
+- For up to 5 minutes after attaching, sends to the human can still be rejected with a `429` daily send limit error while the API key's cached limits catch up. Wait and retry: this is not your real limit.
 
 ## AgentMail MCP Server
 
@@ -131,14 +199,14 @@ You can give your agent current docs in three ways:
    A structured index of every doc page with descriptions:
 
    ```
-   https://docs.agentmail.to/llms.txt
+   https://www.agentmail.to/docs/llms.txt
    ```
-2. **Complete docs in one file**
+2. **Docs search over MCP**
 
-   Every doc page concatenated into a single file for full context:
+   An MCP server with a `searchDocs` tool that returns relevant passages with their source URLs:
 
    ```
-   https://docs.agentmail.to/llms-full.txt
+   https://docs.agentmail.to/_mcp/server
    ```
 3. **Markdown versions of any page**
 
@@ -246,7 +314,7 @@ agentmail agent verify --otp-code 123456
 agentmail inboxes create --display-name "My AI Agent"
 
 # send an email (replace <inbox_id> with the id from above)
-agentmail inboxes:messages send \
+agentmail inboxes messages send \
   --inbox-id <inbox_id> \
   --to user@example.com \
   --subject "Hello from my AI agent" \

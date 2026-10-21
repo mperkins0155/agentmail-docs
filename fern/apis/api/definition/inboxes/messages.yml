@@ -1,0 +1,315 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: ../__package__.yml
+  inboxes: __package__.yml
+  messages: ../messages.yml
+  attachments: ../attachments.yml
+  agentArmor: ../agent-armor.yml
+
+service:
+  url: Http
+  base-path: /inboxes/{inbox_id}/messages
+  path-parameters:
+    inbox_id: inboxes.InboxId
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List Messages
+      docs: |
+        Lists messages in the inbox, most recent first. Pass `from`, `to`, or
+        `subject` to filter by substring. Filtered requests are served by
+        search, which caps `limit` at 100. For relevance-ranked full-text
+        search across sender, recipients, subject, and message body, use
+        `Search Messages`.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes messages list --inbox-id <inbox_id>
+        ```
+      request:
+        name: ListMessagesRequest
+        query-parameters:
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          labels: optional<global.Labels>
+          before: optional<global.Before>
+          after: optional<global.After>
+          ascending: optional<global.Ascending>
+          include_spam: optional<global.IncludeSpam>
+          include_blocked: optional<global.IncludeBlocked>
+          include_unauthenticated: optional<global.IncludeUnauthenticated>
+          include_trash: optional<global.IncludeTrash>
+          from:
+            type: optional<list<string>>
+            docs: Filter to messages whose sender contains this value (substring match). Repeatable; all values must match.
+          to:
+            type: optional<list<string>>
+            docs: Filter to messages whose recipients (to, cc, or bcc) contain this value (substring match). Repeatable; all values must match.
+          subject:
+            type: optional<list<string>>
+            docs: Filter to messages whose subject contains this value (substring match). Repeatable; all values must match.
+      response: messages.ListMessagesResponse
+      errors:
+        - global.NotFoundError
+
+    search:
+      method: GET
+      path: /search
+      display-name: Search Messages
+      docs: |
+        Full-text search across messages in the inbox, ranked by relevance. The
+        query is matched against the sender, recipients, and subject (substring)
+        and the message body (tokenized full text). Spam, trash, blocked, and
+        unauthenticated messages are always excluded. `limit` cannot exceed 100.
+      request:
+        name: SearchMessagesRequest
+        query-parameters:
+          q: global.Query
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          before: optional<global.Before>
+          after: optional<global.After>
+      response: messages.SearchMessagesResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+
+    get:
+      method: GET
+      path: /{message_id}
+      display-name: Get Message
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages get --inbox-id <inbox_id> --message-id <message_id>
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      response: messages.Message
+      errors:
+        - global.NotFoundError
+
+    createAgentArmorFeedback:
+      method: POST
+      path: /{message_id}/agent-armor/feedback
+      display-name: Create Agent Armor Feedback
+      availability: beta
+      docs: |
+        Tell us whether Agent Armor's verdict on a message was right. The message needs a completed result. A message
+        accepts up to 20 pieces of feedback. Requires permission to read the message.
+      path-parameters:
+        message_id: messages.MessageId
+      request: agentArmor.CreateAgentArmorFeedbackRequest
+      response: agentArmor.AgentArmorFeedback
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+
+    releaseAgentArmorMessage:
+      method: POST
+      path: /{message_id}/agent-armor/release
+      display-name: Release Agent Armor Message
+      availability: beta
+      docs: |
+        Release a message Agent Armor held for review in hold mode: your agents are sent its `message.received`
+        event, `message.security.override` is sent too, in either order, and its `agent-armor-held` label is removed.
+        Only a message whose verdict is `review` and that is still held can be released; anything else answers `409`.
+        Repeating a release with the same reason and the same API key returns the first release; any other repeat
+        answers `409`.
+
+        Requires the opt-in `agent_armor_release` permission and permission to read the message. An organization
+        admin can also release from the console.
+      path-parameters:
+        message_id: messages.MessageId
+      request: agentArmor.ReleaseAgentArmorMessageRequest
+      response: agentArmor.ReleaseAgentArmorMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+
+    batchGet:
+      method: POST
+      path: /batch-get
+      display-name: Batch Get Messages
+      docs: |
+        Fetch metadata for up to 500 messages in one request. Missing or
+        restricted IDs are silently omitted; compare `count` against `limit`
+        to detect misses.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes messages batch-get --inbox-id <inbox_id> --message-ids <id1> --message-ids <id2>
+        ```
+      request: messages.BatchGetMessagesRequest
+      response: messages.BatchGetMessagesResponse
+      errors:
+        - global.ValidationError
+
+    batchUpdate:
+      method: POST
+      path: /batch-update
+      display-name: Batch Update Messages
+      docs: |
+        Apply one label change to up to 50 messages in a single request. The
+        same add_labels and remove_labels apply to every message id, and at
+        least one of them must be provided. The update is atomic: either all
+        resolved messages are updated or none are. Missing or restricted ids
+        are silently excluded; compare `count` against `limit` to detect
+        exclusions.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes messages batch-update --inbox-id <inbox_id> --message-ids <id1> --message-ids <id2> --add-labels read --remove-labels unread
+        ```
+      request: messages.BatchUpdateMessagesRequest
+      response: messages.BatchUpdateMessagesResponse
+      errors:
+        - global.ValidationError
+
+    getAttachment:
+      method: GET
+      path: /{message_id}/attachments/{attachment_id}
+      display-name: Get Attachment
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages get-attachment --inbox-id <inbox_id> --message-id <message_id> --attachment-id <attachment_id>
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+        attachment_id: attachments.AttachmentId
+      response: attachments.AttachmentResponse
+      errors:
+        - global.NotFoundError
+
+    getRaw:
+      method: GET
+      path: /{message_id}/raw
+      display-name: Get Raw Message
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages get-raw --inbox-id <inbox_id> --message-id <message_id>
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      response: messages.RawMessageResponse
+      errors:
+        - global.NotFoundError
+
+    update:
+      method: PATCH
+      path: /{message_id}
+      display-name: Update Message
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages update --inbox-id <inbox_id> --message-id <message_id> --add-labels read --remove-labels unread
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      request: messages.UpdateMessageRequest
+      response: messages.UpdateMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+
+    delete:
+      method: DELETE
+      path: /{message_id}
+      display-name: Delete Message
+      docs: |
+        Permanently deletes a message.
+
+        **CLI:**
+        ```bash
+        agentmail inboxes messages delete --inbox-id <inbox_id> --message-id <message_id>
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      errors:
+        - global.NotFoundError
+
+    send:
+      method: POST
+      path: /send
+      display-name: Send Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages send --inbox-id <inbox_id> --to recipient@example.com --subject "Hello" --text "Body"
+        ```
+      request: messages.SendMessageRequest
+      response: messages.SendMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+        - messages.MessageRejectedError
+
+    reply:
+      method: POST
+      path: /{message_id}/reply
+      display-name: Reply To Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages reply --inbox-id <inbox_id> --message-id <message_id> --text "Reply text"
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      request: messages.ReplyToMessageRequest
+      response: messages.SendMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+        - messages.MessageRejectedError
+
+    reply-all:
+      method: POST
+      path: /{message_id}/reply-all
+      display-name: Reply All Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages reply-all --inbox-id <inbox_id> --message-id <message_id> --text "Reply text"
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      request: messages.ReplyAllMessageRequest
+      response: messages.SendMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+        - messages.MessageRejectedError
+
+    forward:
+      method: POST
+      path: /{message_id}/forward
+      display-name: Forward Message
+      idempotent: true
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes messages forward --inbox-id <inbox_id> --message-id <message_id> --to recipient@example.com
+        ```
+      path-parameters:
+        message_id: messages.MessageId
+      request: messages.SendMessageRequest
+      response: messages.SendMessageResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - global.ConflictError
+        - messages.MessageRejectedError

@@ -9,8 +9,6 @@ description: AgentMail's LangChain integration
 
 [LangChain](https://www.langchain.com/) is the most widely used framework for building LLM-powered agents. The [`langchain-agentmail`](https://github.com/agentmail-to/langchain-agentmail) package wraps the AgentMail SDK as standard LangChain tools, plus a document loader and a retriever — so a LangGraph agent can send, reply, draft, label, and search email through a real inbox without any glue code.
 
-The full reference lives on the LangChain docs site: [docs.langchain.com/oss/python/integrations/providers/agentmail](https://docs.langchain.com/oss/python/integrations/providers/agentmail).
-
 ## Use cases
 
 - **Give agents their own inboxes:** Provision a dedicated email address per agent so it can send and receive mail independently.
@@ -95,7 +93,7 @@ The toolkit exposes one tool per AgentMail operation.
 | `agentmail_send_message` | Send a new email |
 | `agentmail_reply_to_message` | Reply inside an existing thread (with optional reply-all) |
 | `agentmail_update_message_labels` | Add or remove labels (archive, follow-up, etc.) |
-| `agentmail_get_attachment` | Get a presigned URL to download a message attachment |
+| `agentmail_get_attachment` | Get a signed HTTPS CDN URL to download a message attachment |
 
 ### Draft management
 
@@ -151,6 +149,5 @@ app.include_router(
 
 ## Resources
 
-- **LangChain integration docs:** [docs.langchain.com/oss/python/integrations/providers/agentmail](https://docs.langchain.com/oss/python/integrations/providers/agentmail)
 - **Source code:** [github.com/agentmail-to/langchain-agentmail](https://github.com/agentmail-to/langchain-agentmail)
 - **PyPI:** [pypi.org/project/langchain-agentmail/](https://pypi.org/project/langchain-agentmail/)

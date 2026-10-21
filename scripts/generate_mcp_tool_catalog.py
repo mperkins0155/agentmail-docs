@@ -53,15 +53,24 @@ def load_manifest():
     return manifest
 
 
+# A string keyword matches tool names containing it; a set matches exactly the names in it. The first group that matches wins.
 GROUPS = [
     ("Inboxes", "inbox"),
     ("Threads", "thread"),
     ("Messages", "message"),
     ("Drafts", "draft"),
     ("Attachments", "attachment"),
-    ("Auth", "auth"),
+    ("Calendar", {"get_agenda", "get_event", "create_event", "update_event", "delete_event", "respond_to_invitation", "get_calendar", "update_calendar"}),
+    ("Allow and block lists", "entr"),
+    ("Agent sign-up", "agent"),
+    ("Apps", "_app"),
+    ("Accounts", "account"),
+    ("AgentMail Labs", "labs"),
     ("Organizations (OAuth sessions only)", "organization"),
 ]
+
+# Tools the server exposes that the docs don't describe yet (Agent Drive). The catalog and its counts leave them out.
+UNLISTED = {"upload_file", "list_files", "get_file", "delete_file"}
 
 
 # Docs-facing copy. The manifest descriptions are written for LLM sessions
@@ -70,6 +79,7 @@ GROUPS = [
 DESCRIPTIONS = {
     "list_inboxes": "List email inboxes, paginated.",
     "get_inbox": "Get an inbox by ID.",
+    "search_inboxes": "Find inboxes by address or display name, best match first.",
     "create_inbox": "Create a new email inbox. Optionally specify username, domain, display name, and metadata.",
     "update_inbox": "Update an inbox's display name or metadata (metadata keys merge; null removes).",
     "delete_inbox": "Delete an inbox by ID.",
@@ -80,6 +90,7 @@ DESCRIPTIONS = {
     "delete_thread": "Delete a thread from an inbox.",
     "list_messages": "List messages in an inbox. Filter by labels, sender, recipient, subject, or before/after datetime, paginated.",
     "search_messages": "Full-text search messages in an inbox, ranked by relevance (spam/trash excluded).",
+    "get_message": "Get one message by ID with its full body.",
     "send_message": "Send an email from an inbox to one or more recipients.",
     "reply_to_message": "Reply to a message in its thread (replyAll to include all original recipients).",
     "forward_message": "Forward a message to new recipients.",
@@ -91,7 +102,27 @@ DESCRIPTIONS = {
     "send_draft": "Send a draft immediately (converted to a sent message and deleted).",
     "delete_draft": "Delete a draft. Also cancels a scheduled send.",
     "get_attachment": "Get an attachment from a thread. Returns metadata and a download URL, plus extracted text for PDF/DOCX.",
-    "auth_me": "Get the identity and scope of the authenticated credential (organization, pod, inbox IDs).",
+    "get_agenda": "List what is on an inbox's calendar in a time window: one-off events and each date of recurring events, by start time.",
+    "get_event": "Get a calendar event by ID, with its description, attendees, and their responses.",
+    "create_event": "Create a one-off or recurring event on an inbox's calendar. `sendInvites` emails every attendee an invitation.",
+    "update_event": "Change an event, one date of a recurring event, or that date and every later one. Pass `sendInvites` again to email attendees the change (events this inbox organizes only).",
+    "delete_event": "Delete an event, or cancel dates of a recurring one. `sendInvites` emails attendees a cancellation, for events this inbox organizes; to turn down an invitation, use `respond_to_invitation`.",
+    "respond_to_invitation": "Accept, decline, or tentatively accept a calendar invitation the inbox received by email, and email the answer to the organizer (`sendReply: false` records it only on the calendar).",
+    "get_calendar": "Get an inbox's calendar: its default time zone and how many events it holds.",
+    "update_calendar": "Set an inbox's calendar default time zone for events created without one.",
+    "list_list_entries": "List the entries on one of an inbox's allow or block lists (send, receive, or reply).",
+    "get_list_entry": "Get one entry from an inbox's allow or block list, by email address or domain.",
+    "create_list_entry": "Add an email address or domain to an inbox's allow or block list. The first allow entry turns that list on.",
+    "delete_list_entry": "Remove an email address or domain from an inbox's allow or block list.",
+    "agent_attach_human": "Attach a human to an unverified agent organization and email them a verification code. An organization that signed up without a human email cannot send until one is attached.",
+    "agent_verify": "Verify an agent organization with the 6-digit code emailed to its human, lifting the unverified plan's limits.",
+    "list_apps": "List the app marketplace: services where your agent can create an account, most popular first.",
+    "search_apps": "Find an app in the marketplace by name.",
+    "get_app": "Get one app by ID, including its terms and sign-up limit. Works for registered apps the marketplace does not list.",
+    "connect_app": "Create an account at an app as an inbox, or sign an existing one back in. Returns a single-use sign-in link.",
+    "list_accounts": "List which inboxes have accounts at which apps.",
+    "get_labs": "Check whether the organization is in AgentMail Labs, and whether Labs is offered in this deployment.",
+    "join_labs": "Join AgentMail Labs for the whole organization. Needs an organization API key with no permissions restriction.",
     "list_organizations": "List the organizations you belong to and show which is currently selected.",
     "select_organization": "Choose which organization your operations target, by name or ID. Persists across sessions.",
 }
@@ -99,7 +130,7 @@ DESCRIPTIONS = {
 
 def group_for(name):
     for title, keyword in GROUPS:
-        if keyword in name:
+        if (name in keyword) if isinstance(keyword, set) else (keyword in name):
             return title
     raise ValueError(f"tool {name} matches no resource group; update GROUPS")
 
@@ -109,7 +140,7 @@ def table_cell(value):
 
 
 def render(manifest):
-    tools = manifest["tools"]
+    tools = [tool for tool in manifest["tools"] if tool["name"] not in UNLISTED]
     shared_count = sum(not tool["oauthOnly"] for tool in tools)
     oauth_count = len(tools) - shared_count
     names = {tool["name"] for tool in tools}

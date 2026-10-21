@@ -1,0 +1,1139 @@
+# Overrides merged onto ../../../openapi/openapi.yml for CLI generation.
+# The spec's info.title is "api" (from the Fern definition's API name),
+# which leaks into the generated README ("# api CLI").
+info:
+  title: AgentMail
+# Rename the Send schema's generated type so it doesn't shadow Rust's
+# std::marker::Send trait in the generated CLI crate.
+components:
+  schemas:
+    Send:
+      x-fern-type-name: SendEvent
+    # CreateApiKeyRequest is a oneOf (bearer key | public key), and the CLI
+    # generator emits only --json for a union body: 1.3.0's
+    # `api-keys create --name/--permissions` flags vanished on regen, and a
+    # plain bearer-key body makes the CLI's local schema check reject a
+    # public_key passed via --json. The three create operations below point
+    # at this flattened object, which carries both variants' fields.
+    # public_key is a free-form object on purpose: with PublicJwk's members
+    # listed, generator 0.38.10 makes --public-key.x/.y required flags even
+    # though public_key is optional, blocking bearer creation. The server
+    # validates the JWK. Keep in sync with ApiKeyMutableFields and
+    # CreatePublicKeyRequest in ../../../openapi/openapi.yml.
+    CliCreateApiKeyRequest:
+      type: object
+      description: |-
+        Omit `public_key` to mint a bearer key; include it to register a
+        public key. `client_id` and `expires_at` apply only with `public_key`.
+      properties:
+        name:
+          $ref: "#/components/schemas/Name"
+        permissions:
+          $ref: "#/components/schemas/ApiKeyPermissions"
+        public_key:
+          type: object
+          additionalProperties: true
+          description: |-
+            Public P-256 JWK with exactly `kty` ("EC"), `crv` ("P-256"), `x`,
+            and `y`, as JSON. Registers a public key instead of minting a
+            bearer key.
+        client_id:
+          $ref: "#/components/schemas/PublicKeyClientId"
+        expires_at:
+          $ref: "#/components/schemas/ExpiresAt"
+
+# The Fern definition marks the five send operations idempotent via
+# `idempotency-headers` (api.yml), but the fern-openapi export drops that
+# declaration, so the generated CLI had no --idempotency-key flag. Those
+# operations' override blocks below declare the header explicitly, and mark
+# them x-fern-idempotent so retries reuse a single key. That marker was
+# unsafe before generator 0.38.6 (retries went out carrying no key at all);
+# on 0.38.6 it is verified safe — retries reuse one auto-generated UUID, and
+# non-idempotent operations without a key no longer retry at all. NOTE:
+# override arrays REPLACE the exported ones, so each such block restates
+# the operation's path parameters.
+
+# Nest the flattened inboxes-*/pods-* command groups (e.g. inboxes-messages ->
+# 'inboxes messages') by restoring the group structure the OpenAPI export drops.
+# Generated from operationId prefixes; method names are the remaining segments.
+paths:
+  /v0/inboxes/{inbox_id}/api-keys:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - apiKeys
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - apiKeys
+      x-fern-sdk-method-name: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliCreateApiKeyRequest"
+  /v0/inboxes/{inbox_id}/api-keys/{api_key_id}:
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - apiKeys
+      x-fern-sdk-method-name: delete
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - apiKeys
+      x-fern-sdk-method-name: update
+  /v0/inboxes/{inbox_id}/drafts:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: create
+  /v0/inboxes/{inbox_id}/drafts/{draft_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: delete
+  /v0/inboxes/{inbox_id}/drafts/{draft_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: get-attachment
+  /v0/inboxes/{inbox_id}/drafts/{draft_id}/send:
+    post:
+      x-fern-idempotent: true
+      x-fern-sdk-group-name:
+      - inboxes
+      - drafts
+      x-fern-sdk-method-name: send
+      parameters:
+      - name: inbox_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/inboxesInboxId'
+      - name: draft_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/DraftId'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Unique key that makes a send idempotent. A retry carrying the same key returns the original message instead of sending a second email; reusing a key with a different request returns a 409 conflict. Keys expire 24 hours after the send completes.
+        schema:
+          type: string
+  /v0/inboxes/{inbox_id}/events:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - events
+      x-fern-sdk-method-name: list
+  /v0/inboxes/{inbox_id}/lists/{direction}/{type}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - lists
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - lists
+      x-fern-sdk-method-name: create
+  /v0/inboxes/{inbox_id}/lists/{direction}/{type}/{entry}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - lists
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - lists
+      x-fern-sdk-method-name: delete
+  /v0/inboxes/{inbox_id}/messages:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: list
+  /v0/inboxes/{inbox_id}/messages/search:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: search
+  /v0/inboxes/{inbox_id}/messages/{message_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: delete
+  /v0/inboxes/{inbox_id}/messages/batch-get:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: batch-get
+  /v0/inboxes/{inbox_id}/messages/{message_id}/agent-armor/feedback:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: create-agent-armor-feedback
+  /v0/inboxes/{inbox_id}/messages/{message_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: get-attachment
+  /v0/inboxes/{inbox_id}/messages/{message_id}/raw:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: get-raw
+  /v0/inboxes/{inbox_id}/messages/send:
+    post:
+      x-fern-idempotent: true
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: send
+      parameters:
+      - name: inbox_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/inboxesInboxId'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Unique key that makes a send idempotent. A retry carrying the same key returns the original message instead of sending a second email; reusing a key with a different request returns a 409 conflict. Keys expire 24 hours after the send completes.
+        schema:
+          type: string
+  /v0/inboxes/{inbox_id}/messages/{message_id}/reply:
+    post:
+      x-fern-idempotent: true
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: reply
+      parameters:
+      - name: inbox_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/inboxesInboxId'
+      - name: message_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/MessageId'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Unique key that makes a send idempotent. A retry carrying the same key returns the original message instead of sending a second email; reusing a key with a different request returns a 409 conflict. Keys expire 24 hours after the send completes.
+        schema:
+          type: string
+  /v0/inboxes/{inbox_id}/messages/{message_id}/reply-all:
+    post:
+      x-fern-idempotent: true
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: reply-all
+      parameters:
+      - name: inbox_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/inboxesInboxId'
+      - name: message_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/MessageId'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Unique key that makes a send idempotent. A retry carrying the same key returns the original message instead of sending a second email; reusing a key with a different request returns a 409 conflict. Keys expire 24 hours after the send completes.
+        schema:
+          type: string
+  /v0/inboxes/{inbox_id}/messages/{message_id}/forward:
+    post:
+      x-fern-idempotent: true
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: forward
+      parameters:
+      - name: inbox_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/inboxesInboxId'
+      - name: message_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/MessageId'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Unique key that makes a send idempotent. A retry carrying the same key returns the original message instead of sending a second email; reusing a key with a different request returns a 409 conflict. Keys expire 24 hours after the send completes.
+        schema:
+          type: string
+  /v0/inboxes/{inbox_id}/threads:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - threads
+      x-fern-sdk-method-name: list
+  /v0/inboxes/{inbox_id}/threads/search:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - threads
+      x-fern-sdk-method-name: search
+  /v0/inboxes/{inbox_id}/threads/{thread_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - threads
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - threads
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - threads
+      x-fern-sdk-method-name: delete
+  /v0/inboxes/{inbox_id}/threads/{thread_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - threads
+      x-fern-sdk-method-name: get-attachment
+  /v0/pods/{pod_id}/api-keys:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - apiKeys
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - apiKeys
+      x-fern-sdk-method-name: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliCreateApiKeyRequest"
+  /v0/pods/{pod_id}/api-keys/{api_key_id}:
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - apiKeys
+      x-fern-sdk-method-name: delete
+    patch:
+      x-fern-sdk-group-name:
+      - pods
+      - apiKeys
+      x-fern-sdk-method-name: update
+  /v0/pods/{pod_id}/domains:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: create
+  /v0/pods/{pod_id}/domains/{domain_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: delete
+  /v0/pods/{pod_id}/domains/{domain_id}/zone-file:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: get-zone-file
+  /v0/pods/{pod_id}/domains/{domain_id}/verify:
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - domains
+      x-fern-sdk-method-name: verify
+  /v0/pods/{pod_id}/drafts:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - drafts
+      x-fern-sdk-method-name: list
+  /v0/pods/{pod_id}/drafts/{draft_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - drafts
+      x-fern-sdk-method-name: get
+  /v0/pods/{pod_id}/drafts/{draft_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - drafts
+      x-fern-sdk-method-name: get-attachment
+  /v0/pods/{pod_id}/inboxes:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - inboxes
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - inboxes
+      x-fern-sdk-method-name: create
+  /v0/pods/{pod_id}/inboxes/{inbox_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - inboxes
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - pods
+      - inboxes
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - inboxes
+      x-fern-sdk-method-name: delete
+  /v0/pods/{pod_id}/lists/{direction}/{type}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - lists
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - lists
+      x-fern-sdk-method-name: create
+  /v0/pods/{pod_id}/lists/{direction}/{type}/{entry}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - lists
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - lists
+      x-fern-sdk-method-name: delete
+  /v0/pods/{pod_id}/threads:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - threads
+      x-fern-sdk-method-name: list
+  /v0/pods/{pod_id}/threads/search:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - threads
+      x-fern-sdk-method-name: search
+  /v0/pods/{pod_id}/threads/{thread_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - threads
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - pods
+      - threads
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - threads
+      x-fern-sdk-method-name: delete
+  /v0/pods/{pod_id}/threads/{thread_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - threads
+      x-fern-sdk-method-name: get-attachment
+  /v0/inboxes:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: create
+  /v0/inboxes/{inbox_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: delete
+  /v0/pods:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      x-fern-sdk-method-name: create
+  /v0/pods/{pod_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      x-fern-sdk-method-name: delete
+  /v0/webhooks:
+    get:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: create
+  /v0/webhooks/{webhook_id}:
+    get:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: delete
+  /v0/agent/sign-up:
+    post:
+      x-fern-sdk-group-name:
+      - agent
+      x-fern-sdk-method-name: sign-up
+  /v0/agent/verify:
+    post:
+      x-fern-sdk-group-name:
+      - agent
+      x-fern-sdk-method-name: verify
+  /v0/api-keys:
+    get:
+      x-fern-sdk-group-name:
+      - apiKeys
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - apiKeys
+      x-fern-sdk-method-name: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliCreateApiKeyRequest"
+  /v0/api-keys/{api_key_id}:
+    delete:
+      x-fern-sdk-group-name:
+      - apiKeys
+      x-fern-sdk-method-name: delete
+    get:
+      x-fern-sdk-group-name:
+      - apiKeys
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - apiKeys
+      x-fern-sdk-method-name: update
+  /v0/auth/me:
+    get:
+      x-fern-sdk-group-name:
+      - auth
+      x-fern-sdk-method-name: me
+  /v0/domains:
+    get:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: create
+  /v0/domains/{domain_id}:
+    get:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: delete
+  /v0/domains/{domain_id}/zone-file:
+    get:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: get-zone-file
+  /v0/domains/{domain_id}/verify:
+    post:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: verify
+  /v0/drafts:
+    get:
+      x-fern-sdk-group-name:
+      - drafts
+      x-fern-sdk-method-name: list
+  /v0/drafts/{draft_id}:
+    get:
+      x-fern-sdk-group-name:
+      - drafts
+      x-fern-sdk-method-name: get
+  /v0/drafts/{draft_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - drafts
+      x-fern-sdk-method-name: get-attachment
+  /v0/lists/{direction}/{type}:
+    get:
+      x-fern-sdk-group-name:
+      - lists
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - lists
+      x-fern-sdk-method-name: create
+  /v0/lists/{direction}/{type}/{entry}:
+    get:
+      x-fern-sdk-group-name:
+      - lists
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - lists
+      x-fern-sdk-method-name: delete
+  /v0/organizations:
+    get:
+      x-fern-sdk-group-name:
+      - organizations
+      x-fern-sdk-method-name: get
+  /v0/organizations/labs:
+    get:
+      x-fern-sdk-group-name:
+      - organizations
+      x-fern-sdk-method-name: get-labs
+    post:
+      x-fern-sdk-group-name:
+      - organizations
+      x-fern-sdk-method-name: join-labs
+  /v0/threads:
+    get:
+      x-fern-sdk-group-name:
+      - threads
+      x-fern-sdk-method-name: list
+  /v0/threads/search:
+    get:
+      x-fern-sdk-group-name:
+      - threads
+      x-fern-sdk-method-name: search
+  /v0/threads/{thread_id}:
+    get:
+      x-fern-sdk-group-name:
+      - threads
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - threads
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - threads
+      x-fern-sdk-method-name: delete
+  /v0/threads/{thread_id}/attachments/{attachment_id}:
+    get:
+      x-fern-sdk-group-name:
+      - threads
+      x-fern-sdk-method-name: get-attachment
+  /v0/inboxes/{inbox_id}/messages/batch-update:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: batch-update
+  /v0/inboxes/{inbox_id}/metrics/events:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - metrics
+      x-fern-sdk-method-name: query-events
+  /v0/inboxes/{inbox_id}/metrics/usage:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - metrics
+      x-fern-sdk-method-name: query-usage
+  /v0/inboxes/{inbox_id}/webhooks:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: create
+  /v0/inboxes/{inbox_id}/webhooks/{webhook_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: delete
+  /v0/metrics/events:
+    get:
+      x-fern-sdk-group-name:
+      - metrics
+      x-fern-sdk-method-name: query-events
+  /v0/metrics/usage:
+    get:
+      x-fern-sdk-group-name:
+      - metrics
+      x-fern-sdk-method-name: query-usage
+  /v0/pods/{pod_id}/metrics/events:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - metrics
+      x-fern-sdk-method-name: query-events
+  /v0/pods/{pod_id}/metrics/usage:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - metrics
+      x-fern-sdk-method-name: query-usage
+  /v0/pods/{pod_id}/webhooks:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: create
+  /v0/pods/{pod_id}/webhooks/{webhook_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: update
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: delete
+  /v0/webhooks/{webhook_id}/headers:
+    get:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: get-headers
+    patch:
+      x-fern-sdk-group-name:
+      - webhooks
+      x-fern-sdk-method-name: update-headers
+  /v0/inboxes/{inbox_id}/webhooks/{webhook_id}/headers:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: get-headers
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      x-fern-sdk-method-name: update-headers
+  /v0/pods/{pod_id}/webhooks/{webhook_id}/headers:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: get-headers
+    patch:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      x-fern-sdk-method-name: update-headers
+  /v0/domains/{domain_id}/setup-link:
+    get:
+      x-fern-sdk-group-name:
+      - domains
+      x-fern-sdk-method-name: get-setup-link
+  /v0/accounts:
+    get:
+      x-fern-sdk-group-name:
+      - accounts
+      x-fern-sdk-method-name: list
+  /v0/accounts/{account_id}:
+    get:
+      x-fern-sdk-group-name:
+      - accounts
+      x-fern-sdk-method-name: get
+  /v0/apps:
+    get:
+      x-fern-sdk-group-name:
+      - apps
+      x-fern-sdk-method-name: list
+  /v0/apps/search:
+    get:
+      x-fern-sdk-group-name:
+      - apps
+      x-fern-sdk-method-name: search
+  /v0/apps/{app_id}:
+    get:
+      x-fern-sdk-group-name:
+      - apps
+      x-fern-sdk-method-name: get
+  /v0/apps/{app_id}/accounts:
+    get:
+      x-fern-sdk-group-name:
+      - apps
+      x-fern-sdk-method-name: list-accounts
+  /v0/apps/{app_id}/connect:
+    post:
+      x-fern-idempotent: true
+      x-fern-sdk-group-name:
+      - apps
+      x-fern-sdk-method-name: connect
+      parameters:
+      - name: app_id
+        in: path
+        required: true
+        description: ID of app, or the `slug` of an app in the catalog. A slug ignores case, spaces and punctuation.
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Unique key that makes the connect idempotent. The endpoint requires one; the CLI generates a UUID when the flag is omitted and reuses it across retries, so a transient failure cannot start a second sign-in. Pass a value to make a manual re-run resolve to the same attempt.
+        schema:
+          type: string
+  /v0/inboxes/{inbox_id}/authorize:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: authorize
+  /v0/inboxes/search:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      x-fern-sdk-method-name: search
+  /v0/pods/{pod_id}/inboxes/search:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - inboxes
+      x-fern-sdk-method-name: search
+  /v0/accounts/{account_id}/update:
+    patch:
+      x-fern-sdk-group-name:
+      - accounts
+      x-fern-sdk-method-name: update
+  /v0/inboxes/{inbox_id}/accounts:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - accounts
+      x-fern-sdk-method-name: list
+  /v0/inboxes/{inbox_id}/accounts/{account_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - accounts
+      x-fern-sdk-method-name: get
+  /v0/pods/{pod_id}/accounts:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - accounts
+      x-fern-sdk-method-name: list
+  /v0/pods/{pod_id}/accounts/{account_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - accounts
+      x-fern-sdk-method-name: get
+  /v0/inboxes/{inbox_id}/metrics/rates:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - metrics
+      x-fern-sdk-method-name: query-rates
+  /v0/metrics/rates:
+    get:
+      x-fern-sdk-group-name:
+      - metrics
+      x-fern-sdk-method-name: query-rates
+  /v0/pods/{pod_id}/metrics/rates:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - metrics
+      x-fern-sdk-method-name: query-rates
+  /v0/agent/human:
+    post:
+      x-fern-sdk-group-name:
+      - agent
+      x-fern-sdk-method-name: attach-human
+  /v0/inboxes/{inbox_id}/calendar:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: get
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: update
+  /v0/inboxes/{inbox_id}/calendar/agenda:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: get-agenda
+  /v0/inboxes/{inbox_id}/calendar/events:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: list-events
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: create-event
+  /v0/inboxes/{inbox_id}/calendar/events/{event_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: get-event
+    patch:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: update-event
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: delete-event
+  /v0/inboxes/{inbox_id}/calendar/events/{event_id}/instances:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: list-event-instances
+  /v0/inboxes/{inbox_id}/calendar/events/{event_id}/respond:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - calendar
+      x-fern-sdk-method-name: respond-to-event
+  /v0/inboxes/{inbox_id}/files:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - files
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - files
+      x-fern-sdk-method-name: create
+  /v0/inboxes/{inbox_id}/files/{file_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - files
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - files
+      x-fern-sdk-method-name: delete
+  /v0/inboxes/{inbox_id}/files/{file_id}/complete:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - files
+      x-fern-sdk-method-name: complete
+  /v0/inboxes/{inbox_id}/webhooks/polling:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: create
+  /v0/inboxes/{inbox_id}/webhooks/polling/{webhook_id}:
+    get:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - inboxes
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: delete
+  /v0/pods/{pod_id}/webhooks/polling:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: create
+  /v0/pods/{pod_id}/webhooks/polling/{webhook_id}:
+    get:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - pods
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: delete
+  /v0/webhooks/polling:
+    get:
+      x-fern-sdk-group-name:
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: list
+    post:
+      x-fern-sdk-group-name:
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: create
+  /v0/webhooks/polling/{webhook_id}:
+    get:
+      x-fern-sdk-group-name:
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: get
+    delete:
+      x-fern-sdk-group-name:
+      - webhooks
+      - polling
+      x-fern-sdk-method-name: delete
+  /v0/inboxes/{inbox_id}/messages/{message_id}/agent-armor/release:
+    post:
+      x-fern-sdk-group-name:
+      - inboxes
+      - messages
+      x-fern-sdk-method-name: release-agent-armor-message

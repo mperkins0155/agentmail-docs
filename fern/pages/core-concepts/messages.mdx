@@ -81,14 +81,14 @@ console.log(`Message sent successfully with ID: ${sentMessage.id}`);
 
 ```bash title="CLI"
 # send a new message with labels
-agentmail inboxes:messages send \
+agentmail inboxes messages send \
   --inbox-id outreach@agentmail.to \
   --to recipient@domain.com \
   --subject "[YC S25] Founder Reachout " \
   --text "Hello, I'm Michael, and I'm a founder at AgentMail..." \
   --html "<div dir=\"ltr\">Hello,<br><br>I'm Michael, and I'm a founder at AgentMail..." \
-  --label outreach \
-  --label startup
+  --labels outreach \
+  --labels startup
 ```
 
 </CodeBlocks>
@@ -96,6 +96,10 @@ agentmail inboxes:messages send \
 <Warning>
   **Recipient limit:** Each send or reply supports a maximum of **50 recipients** across the combined total of `to`, `cc`, and `bcc`. If you exceed this limit, the API will return an error.
 </Warning>
+
+<Callout intent="info" title="Sent via AgentMail footer">
+  Messages sent on the free tier include a **Sent via AgentMail** footer appended to the bottom of the email. This footer is not added to messages sent on paid plans. [Upgrade your plan](https://agentmail.to/pricing) to remove it.
+</Callout>
 
 ### 3. List `Messages` in an `Inbox`
 
@@ -117,7 +121,7 @@ console.log(`Found ${allMessages.count} messages in the inbox.`);
 
 ```bash title="CLI"
 # list all messages in an inbox
-agentmail inboxes:messages list --inbox-id outreach@agentmail.to
+agentmail inboxes messages list --inbox-id outreach@agentmail.to
 ```
 
 </CodeBlocks>
@@ -201,12 +205,11 @@ console.log(`Reply sent successfully with ID: ${reply.id}`);
 
 ```bash title="CLI"
 # reply to a message with an attachment
-agentmail inboxes:messages reply \
+agentmail inboxes messages reply \
   --inbox-id my_inbox@domain.com \
   --message-id "<abc123@agentmail.to>" \
   --text "Thanks for the referral!" \
-  --attachment.content "resume" \
-  --attachment.filename "resume.pdf"
+  --attachments '[{"filename": "resume.pdf", "content": "<base64-content>"}]'
 ```
 
 </CodeBlocks>
@@ -241,13 +244,13 @@ console.log(`Retrieved message with subject: ${message.subject}`);
 
 ```bash title="CLI"
 # get a specific message
-agentmail inboxes:messages get \
+agentmail inboxes messages get \
   --inbox-id my_inbox@agentmail.to \
   --message-id "<abc123@agentmail.to>"
 ```
 </CodeBlocks>
 
-When receiving replies or forwards, use `extracted_text` or `extracted_html` for just the new content—quoted history is stripped automatically.
+When receiving replies, use `extracted_text` or `extracted_html` for just the new content: quoted history and trailing boilerplate are stripped automatically. For forwarded mail, read `text` or `html`, since extraction can drop the forwarded content. See [Reply & Attachment Extraction](/reply-extraction) for exactly what is removed and kept.
 
 ## Copy for Cursor / Claude
 
@@ -312,7 +315,7 @@ Copy one of the blocks below into Cursor or Claude for complete Messages API kno
    * - messages.forward(inboxId, messageId, { to, subject?, text?, html? })
    * - messages.update(inboxId, messageId, { addLabels?, removeLabels? })
    * - messages.getAttachment(inboxId, messageId, attachmentId)
-   * - messages.getRaw(inboxId, messageId) -> { message_id, size, download_url, expires_at } (S3 presigned URL for .eml)
+   * - messages.getRaw(inboxId, messageId) -> { message_id, size, download_url, expires_at } (signed HTTPS CDN URL for .eml)
    * - messages.getRaw(inboxId, messageId)
    *
    * Reply content: use extractedText/extractedHtml for new content without quoted history.
@@ -504,7 +507,7 @@ When processing incoming messages, always treat `html` as the primary content so
 ## Receiving `Messages`
 
 <Warning>
-**Inbound emails are checked for SPF, DKIM, and DMARC authentication.** AgentMail drops emails when authentication headers are present and explicitly fail. When authentication headers are missing, AgentMail still processes the email and labels it `unauthenticated`. Subscribe to the `message.received.unauthenticated` event to monitor these messages. See [Why are my emails not showing up?](/knowledge-base/inbound-emails-missing) for details.
+**Inbound emails are checked for SPF, DKIM, and DMARC authentication.** AgentMail drops an email only when it fails DMARC under an enforcing policy (`quarantine` or `reject`). An email with no passing mechanism, or a DMARC failure under a `none` policy, is delivered and labelled `unauthenticated`; subscribe to the `message.received.unauthenticated` event to monitor these messages. The per-mechanism verdicts are in the `authentication_results` field of a received `Message`, and [Get Message](/api-reference/inboxes/messages/get) describes each key and when it is absent. See [Why are my emails not showing up?](/knowledge-base/inbound-emails-missing) for details.
 </Warning>
 
 While you can periodically list `Messages` to check for new emails, the most efficient way to handle incoming `Messages` for your agents is with `Webhooks`. By configuring a `Webhook` endpoint, AgentMail can notify your application/agent in real-time as soon as a new `Message` arrives, so you can take action on them.
@@ -560,16 +563,16 @@ const unread = await client.inboxes.messages.list(
 
 ```bash title="CLI"
 # mark a message as read after processing
-agentmail inboxes:messages update \
+agentmail inboxes messages update \
   --inbox-id agent@agentmail.to \
   --message-id "<message_id>" \
-  --add-label read \
-  --remove-label unread
+  --add-labels read \
+  --remove-labels unread
 
 # only fetch unread messages
-agentmail inboxes:messages list \
+agentmail inboxes messages list \
   --inbox-id agent@agentmail.to \
-  --label unread
+  --labels unread
 ```
 </CodeBlocks>
 

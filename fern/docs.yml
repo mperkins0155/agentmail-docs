@@ -22,11 +22,15 @@ title: AgentMail | Documentation
 favicon: assets/agentmail-favicon.ico
 
 metadata:
-  og:description: "AgentMail is an email API built for AI agents. Create inboxes, send and receive messages, manage threads, and handle webhooks programmatically."
-  canonical-host: agentmail.to/docs
+  og:description: "AgentMail is the first email provider built for AI agents. Create inboxes, send and receive messages, manage threads, and handle webhooks programmatically. Free tier, no credit card required."
+  # Fern takes only the host from this and appends each instance's own basepath, so
+  # the agentmail.to/docs instance gets www.agentmail.to/docs/<slug>: the URL that
+  # answers 200 (agentmail.to redirects to www). The docs.agentmail.to instance gets
+  # www.agentmail.to/<slug>, which 404s; that host is due to redirect to /docs.
+  canonical-host: www.agentmail.to
 
 agents:
-  page-directive: "For clean Markdown content of this page, append .md to this URL. For the complete documentation index, see https://docs.agentmail.to/llms.txt. For full content including API reference and SDK examples, see https://docs.agentmail.to/llms-full.txt."
+  page-directive: "For clean Markdown content of this page, append .md to this URL. For the complete documentation index, see https://www.agentmail.to/docs/llms.txt."
 
 ai-search:
   location:
@@ -99,11 +103,22 @@ experimental:
 default-language: python
 
 redirects:
+  - source: /agentid-browser-enrollment
+    destination: /agentid-sign-in
+    permanent: true
+
   - source: /integrations/moltbot
     destination: /integrations/openclaw
     permanent: true
   - source: /integrations/ai-onboarding
     destination: /integrations/agent-onboarding
+    permanent: true
+  - source: /talon-reply-extraction
+    destination: /reply-extraction
+    permanent: true
+  # /v0/providers* was renamed to /v0/apps* and removed; each endpoint keeps its slug.
+  - source: /api-reference/providers/:slug*
+    destination: /api-reference/apps/:slug*
     permanent: true
 
   # --- 404 redirects from crawl report ---
@@ -265,6 +280,40 @@ navigation:
           - page: Permissions
             icon: fa-solid fa-lock
             path: pages/core-concepts/permissions.mdx
+      - section: Calendar (Beta)
+        availability: beta
+        contents:
+          - page: Overview
+            icon: fa-regular fa-calendar
+            path: pages/calendar/overview.mdx
+            availability: beta
+          - page: Managing Events
+            icon: fa-solid fa-calendar-plus
+            path: pages/calendar/events.mdx
+            availability: beta
+          - page: Recurring Events
+            icon: fa-solid fa-repeat
+            path: pages/calendar/recurring-events.mdx
+            availability: beta
+          - page: Invitations
+            icon: fa-solid fa-envelope-open-text
+            path: pages/calendar/invitations.mdx
+            availability: beta
+          - page: Calendar Webhooks
+            icon: fa-solid fa-bell
+            path: pages/calendar/webhooks.mdx
+            availability: beta
+          - page: Concurrency, Limits & Errors
+            icon: fa-solid fa-triangle-exclamation
+            path: pages/calendar/reference.mdx
+            availability: beta
+      - section: Agent Armor (Labs)
+        availability: beta
+        contents:
+          - page: Agent Armor
+            icon: fa-solid fa-shield-halved
+            path: pages/agent-armor/overview.mdx
+            availability: beta
       - section: Integrations
         contents:
           - page: Agent Onboarding
@@ -279,6 +328,9 @@ navigation:
           - page: MCP
             icon: fa-solid fa-plug
             path: pages/integrations/mcp.mdx
+          - page: MCP Events
+            icon: fa-solid fa-bell
+            path: pages/integrations/mcp-events.mdx
           - page: CLI
             icon: fa-solid fa-terminal
             path: pages/integrations/cli.mdx
@@ -288,12 +340,27 @@ navigation:
           - page: LangChain
             icon: fa-solid fa-link
             path: pages/integrations/langchain.mdx
+          - page: Vercel AI SDK
+            icon: fa-solid fa-code
+            path: pages/integrations/ai-sdk.mdx
+          - page: OpenAI Agents SDK
+            icon: fa-solid fa-microchip
+            path: pages/integrations/openai-agents-sdk.mdx
+          - page: Claude Agent SDK
+            icon: fa-solid fa-asterisk
+            path: pages/integrations/claude-agent-sdk.mdx
           - page: OpenClaw
             icon: fa-solid fa-robot
             path: pages/integrations/openclaw.mdx
+          - page: Grok Bot
+            icon: fa-solid fa-bolt-lightning
+            path: pages/integrations/grokbot.mdx
           - page: Replit
             icon: fa-solid fa-laptop-code
             path: pages/integrations/replit.mdx
+          - page: Vercel
+            icon: fa-solid fa-cloud-arrow-up
+            path: pages/integrations/vercel.mdx
           - page: x402
             icon: fa-solid fa-credit-card
             path: pages/integrations/x402.mdx
@@ -314,12 +381,21 @@ navigation:
           #   path: pages/integrations/crewai.mdx
       - section: Guides
         contents:
+          - page: AgentID Sign-In
+            icon: fa-solid fa-shield-halved
+            path: pages/guides/agentid-sign-in.mdx
           - page: AgentID Public-Key Authentication
             icon: fa-solid fa-key
             path: pages/guides/agentid-public-key-authentication.mdx
+          - page: AgentID in Claude, ChatGPT, and Cursor
+            icon: fa-solid fa-robot
+            path: pages/guides/agentid-in-assistants.mdx
           - page: Sending & Receiving Email
             icon: fa-solid fa-right-left
             path: pages/guides/sending-receiving-email.mdx
+          - page: Reply & Attachment Extraction
+            icon: fa-solid fa-scissors
+            path: pages/guides/reply-extraction.mdx
           - page: IMAP & SMTP
             icon: fa-solid fa-envelope-open-text
             path: pages/guides/imap-smtp.mdx
@@ -342,7 +418,6 @@ navigation:
                 icon: fa-solid fa-gear
                 path: pages/guides/domains/managing-domains.mdx
           - page: Google Workspace
-            hidden: true
             icon: fa-brands fa-google
             path: pages/guides/google-workspace.mdx
       - section: Webhooks
@@ -356,6 +431,9 @@ navigation:
           - page: Setup Guide
             icon: fa-solid fa-screwdriver-wrench
             path: pages/webhooks/webhook-setup.mdx
+          - page: Polling
+            icon: fa-solid fa-arrows-rotate
+            path: pages/webhooks/webhook-polling.mdx
           - page: Verifying Webhooks
             icon: fa-solid fa-shield-halved
             path: pages/webhooks/webhook-verification.mdx
@@ -414,9 +492,6 @@ navigation:
           - page: Error Reference
             icon: fa-solid fa-triangle-exclamation
             path: pages/resources/errors.mdx
-          - page: Talon Reply Extraction
-            icon: fa-solid fa-scissors
-            path: pages/resources/talon.mdx
           - page: Community
             icon: fa-solid fa-users
             path: pages/resources/community.mdx
@@ -429,6 +504,9 @@ navigation:
               - page: SPF, DKIM, DMARC
                 icon: fa-solid fa-key
                 path: pages/resources/security/email-protocols.mdx
+              - page: 24-hour Message Expiry
+                icon: fa-solid fa-clock
+                path: pages/resources/security/message-expiry.mdx
               - page: SOC 2 Compliance
                 icon: fa-solid fa-certificate
                 path: pages/resources/security/soc2.mdx
@@ -439,15 +517,23 @@ navigation:
   - tab: api
     layout:
       - api: API Reference
+        # Required: fern/apis/cli is the only OpenAPI workspace, so without an
+        # explicit api-name Fern binds this section to the CLI spec instead of
+        # the Fern definition (drops websockets + webhook events, and the
+        # oversized cli definition fails to register with FDR).
+        api-name: api
         summary: pages/apiwelcome.mdx
         snippets:
           python: agentmail
           typescript: agentmail
         layout:
           - agent
-          - inboxes
+          # Agent Drive isn't public yet: its endpoints stay reachable by URL (noindex) but out of the sidebar.
+          - inboxes:
+              contents:
+                - inboxes/files:
+                    hidden: true
           - threads
-          - messages
           - drafts
           - webhooks
           - websockets
@@ -455,6 +541,8 @@ navigation:
           - lists
           - metrics
           - api-keys
+          - apps
+          - accounts
           - pods
           - organizations
   - tab: kb
@@ -470,12 +558,32 @@ navigation:
           - page: What can I do with an inbox?
             icon: fa-solid fa-inbox
             path: pages/knowledge-base/inbox-capabilities.mdx
+          - page: Inbox profile pictures
+            icon: fa-regular fa-image
+            path: pages/knowledge-base/inbox-profile-pictures.mdx
           - page: Creating your first inbox
             icon: fa-solid fa-plus
             path: pages/knowledge-base/creating-first-inbox.mdx
           - page: Getting your API key
             icon: fa-solid fa-key
             path: pages/knowledge-base/getting-api-key.mdx
+          - page: Claiming your agent's inbox
+            icon: fa-solid fa-hand-holding
+            path: pages/knowledge-base/claiming-agent-inbox.mdx
+          - page: Why can my agent only email its human?
+            icon: fa-solid fa-robot
+            path: pages/knowledge-base/agent-sign-up-limits.mdx
+      - section: Account & Billing
+        contents:
+          - page: Why was my account suspended?
+            icon: fa-solid fa-user-slash
+            path: pages/knowledge-base/account-suspended.mdx
+          - page: How do I upgrade, downgrade, or cancel my plan?
+            icon: fa-solid fa-credit-card
+            path: pages/knowledge-base/change-plan-billing.mdx
+          - page: Security and compliance FAQ
+            icon: fa-solid fa-lock
+            path: pages/knowledge-base/security-compliance.mdx
       - section: Agent Patterns
         contents:
           - page: Handling inbound emails
@@ -496,11 +604,17 @@ navigation:
           - page: Using labels to track state
             icon: fa-solid fa-tags
             path: pages/knowledge-base/labels-track-state.mdx
+          - page: Knowing when an email is opened
+            icon: fa-solid fa-envelope-open
+            path: pages/knowledge-base/open-tracking.mdx
       - section: Domains & Deliverability
         contents:
           - page: Custom domain setup
             icon: fa-solid fa-globe
             path: pages/knowledge-base/custom-domain-setup.mdx
+          - page: Inboxes on subdomains
+            icon: fa-solid fa-sitemap
+            path: pages/knowledge-base/subdomain-inboxes.mdx
           - page: SPF, DKIM, and DMARC setup
             icon: fa-solid fa-shield-halved
             path: pages/knowledge-base/spf-dkim-dmarc.mdx
@@ -513,9 +627,9 @@ navigation:
           - page: MX record conflicts
             icon: fa-solid fa-code-merge
             path: pages/knowledge-base/mx-record-conflicts.mdx
-          # - page: Warming up your inbox
-          #   icon: fa-solid fa-fire
-          #   path: pages/knowledge-base/warming-up-your-inbox.mdx
+          - page: Can my agent send cold outreach?
+            icon: fa-solid fa-paper-plane
+            path: pages/knowledge-base/cold-outreach.mdx
       - section: Troubleshooting
         contents:
           - page: API 403 error

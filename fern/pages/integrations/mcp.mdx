@@ -1,17 +1,17 @@
 ---
 title: MCP
-subtitle: Connect AgentMail to Claude, Cursor, and other MCP clients
+subtitle: Connect AgentMail to Claude, ChatGPT, Cursor, and other MCP clients
 slug: integrations/mcp
-description: Connect AgentMail to Claude, Cursor, and other MCP clients
+description: Connect AgentMail to Claude, ChatGPT, Cursor, and other MCP clients
 ---
 
 ## Overview
 
-The Model Context Protocol (MCP) is an open standard that lets AI clients call external tools. AgentMail runs a hosted MCP server at `https://mcp.agentmail.to/mcp` that exposes inbox, message, thread, draft, and attachment tools to any compatible client.
+The Model Context Protocol (MCP) is an open standard that lets AI clients call external tools. AgentMail runs a hosted MCP server at `https://mcp.agentmail.to/mcp` that exposes inbox, message, thread, draft, attachment, and calendar tools to any compatible client, plus [AgentID](/agentid-in-assistants) tools that create accounts for your agent at services like Firecrawl. Clients that support [MCP Events](/integrations/mcp-events), such as ChatGPT, can also subscribe to new mail and act on it as it arrives.
 
 The server supports two authentication paths:
 
-- **OAuth** (default, recommended for Claude Desktop and Claude.ai). The client signs in through `console.agentmail.to` and the server uses your console identity for every call.
+- **OAuth** (default, recommended for Claude Desktop, Claude.ai, and ChatGPT). The client signs in through `console.agentmail.to` and the server uses your console identity for every call.
 - **API key** (for Cursor, Windsurf, and other clients that do not implement the MCP OAuth flow). Pass the key as an `x-api-key` header; query-string keys end up in logs and history.
 
 If you belong to more than one AgentMail organization, the OAuth consent screen will ask you to pick which one to use before completing the connection.
@@ -31,6 +31,16 @@ If you belong to more than one AgentMail organization, the OAuth consent screen 
 <Tip>
 OAuth is the recommended path for Claude products. You do not need an API key; the server uses your console identity to call AgentMail on your behalf.
 </Tip>
+
+### ChatGPT (OAuth)
+
+AgentMail is available as a plugin in ChatGPT.
+
+1. Open [ChatGPT Plugins](https://chatgpt.com/plugins), search for **AgentMail**, and select **Install plugin**. On a workspace plan, your admin controls which plugins are available.
+2. Sign in at `console.agentmail.to` when the browser window opens. If you belong to multiple organizations, pick one on the consent screen.
+3. In a chat, type `@` and select AgentMail, then send `List my AgentMail inboxes` to confirm the connection.
+
+ChatGPT asks you to confirm write actions, such as sending mail or connecting an app, before it runs them. To have ChatGPT act on new mail as it arrives, see [MCP Events](/integrations/mcp-events).
 
 ### Cursor (API key)
 
@@ -62,6 +72,22 @@ claude mcp add --transport http agentmail https://mcp.agentmail.to/mcp
 
 Claude Code will run the same OAuth flow on first use. Connectors installed on Claude.ai do not automatically sync to Claude Code, so install it separately.
 
+For Claude Code, Cursor, and Codex, the [AgentMail plugin](/integrations/skills#plugins-for-claude-code-cursor-and-codex) installs this server together with the AgentMail skills.
+
+## Create accounts for your agent with AgentID
+
+The connector includes the AgentID tools, so your assistant can create an account for your agent at an app, using an inbox as its identity:
+
+- "Create an account at Firecrawl for my agent."
+- "My agent needs a web search API. Set one up."
+- "Which services is support-bot@agentmail.to signed up for?"
+
+The assistant gives you a single-use sign-in link that expires after five minutes. Open it in the browser that should hold the agent's session, then ask the assistant to confirm. See [AgentID in Claude, ChatGPT, and Cursor](/agentid-in-assistants) for the full walkthrough, including getting an API key.
+
+## Get notified when mail arrives
+
+The server publishes a `message.received` event through [MCP Events](/integrations/mcp-events). In a ChatGPT dot or Work chat, ask something like `Whenever support@agentmail.to gets a new email, summarize it for me`, and ChatGPT starts the task within seconds of each new email instead of checking the inbox on a schedule. The event carries metadata only; the assistant reads the message itself with `get_message`.
+
 ## Available tools
 
 MCP clients discover the live tool catalog from the hosted server. The canonical repository publishes the same runtime-generated contract in [`mcp-manifest.json`](https://github.com/agentmail-to/agentmail-mcp/blob/main/mcp-manifest.json), so tool names and schemas do not drift between the runtime, bridges, tests, and documentation.
@@ -71,6 +97,8 @@ MCP clients discover the live tool catalog from the hosted server. The canonical
 ## Troubleshooting
 
 **Claude says it cannot access AgentMail.** The connector is not installed or not connected. Follow the Claude Desktop setup steps above and confirm the connector shows as connected in **Settings**, then **Connectors**.
+
+**The assistant does not list the AgentID or calendar tools.** Disconnect and reconnect the AgentMail connector so the client reloads the tool list, then ask `List AgentID apps`.
 
 **OAuth opens `console.agentmail.to` but says you do not have an account.** Sign up at [console.agentmail.to](https://console.agentmail.to) first, then retry the connector flow.
 

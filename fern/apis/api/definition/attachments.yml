@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+types:
+  AttachmentId:
+    type: string
+    docs: ID of attachment.
+
+  AttachmentFilename:
+    type: string
+    docs: Filename of attachment.
+
+  AttachmentSize:
+    type: integer
+    docs: Size of attachment in bytes.
+
+  AttachmentContentType:
+    type: string
+    docs: Content type of attachment.
+
+  AttachmentContentDisposition:
+    enum:
+      - name: INLINE
+        value: inline
+      - name: ATTACHMENT
+        value: attachment
+    docs: Content disposition of attachment.
+
+  AttachmentContentId:
+    type: string
+    docs: Content ID of attachment.
+
+  Attachment:
+    properties:
+      attachment_id: AttachmentId
+      filename: optional<AttachmentFilename>
+      size: AttachmentSize
+      content_type: optional<AttachmentContentType>
+      content_disposition: optional<AttachmentContentDisposition>
+      content_id: optional<AttachmentContentId>
+
+  AttachmentResponse:
+    properties:
+      attachment_id: AttachmentId
+      filename: optional<AttachmentFilename>
+      size: AttachmentSize
+      content_type: optional<AttachmentContentType>
+      content_disposition: optional<AttachmentContentDisposition>
+      content_id: optional<AttachmentContentId>
+      download_url:
+        type: string
+        docs: Signed HTTPS CDN URL to download the attachment bytes. Retrieve a fresh URL when needed rather than storing it permanently.
+      text_url:
+        type: optional<string>
+        docs: Signed HTTPS CDN URL to download extracted plain text, when available. Omitted when no extracted text is available. Expires at the same time as download_url.
+      expires_at:
+        type: datetime
+        docs: Time at which download_url and text_url (when present) expire. Retrieve the attachment again to obtain fresh URLs.
+
+  SendAttachment:
+    docs: Provide either `content` or `url` for each attachment.
+    properties:
+      filename: optional<AttachmentFilename>
+      content_type: optional<AttachmentContentType>
+      content_disposition: optional<AttachmentContentDisposition>
+      content_id: optional<AttachmentContentId>
+      content:
+        type: optional<string>
+        docs: Base64 encoded content of the attachment. The entire request, including the message body and all attachments, is limited to 6 MB.
+      url:
+        type: optional<string>
+        docs: |
+          URL that AgentMail can download without custom authentication headers or cookies.
+          Redirects and pre-signed URLs are supported, and the final response must be a
+          successful 2xx response. Keep URL-backed attachments around 30 MB total per message.

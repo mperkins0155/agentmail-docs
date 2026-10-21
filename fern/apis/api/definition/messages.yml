@@ -1,0 +1,462 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+imports:
+  global: __package__.yml
+  inboxes: inboxes/__package__.yml
+  threads: threads.yml
+  attachments: attachments.yml
+  agentArmor: agent-armor.yml
+
+types:
+  MessageId:
+    type: string
+    docs: ID of message.
+
+  MessageLabels:
+    type: list<string>
+    docs: Labels of message.
+
+  MessageTimestamp:
+    type: datetime
+    docs: Time at which message was sent or drafted.
+
+  MessageFrom:
+    type: string
+    docs: Address of sender. In format `username@domain.com` or `Display Name <username@domain.com>`.
+
+  MessageReplyTo:
+    type: list<string>
+    docs: Addresses of reply-to recipients. In format `username@domain.com` or `Display Name <username@domain.com>`.
+
+  MessageTo:
+    type: list<string>
+    docs: Addresses of recipients. In format `username@domain.com` or `Display Name <username@domain.com>`.
+
+  MessageCc:
+    type: list<string>
+    docs: Addresses of CC recipients. In format `username@domain.com` or `Display Name <username@domain.com>`.
+
+  MessageBcc:
+    type: list<string>
+    docs: Addresses of BCC recipients. In format `username@domain.com` or `Display Name <username@domain.com>`.
+
+  MessageSubject:
+    type: string
+    docs: Subject of message.
+
+  MessagePreview:
+    type: string
+    docs: Text preview of message.
+
+  MessageText:
+    type: string
+    docs: Plain text body of message.
+
+  MessageHtml:
+    type: string
+    docs: HTML body of message.
+
+  MessageAttachments:
+    type: list<attachments.Attachment>
+    docs: Attachments in message.
+
+  MessageInReplyTo:
+    type: string
+    docs: ID of message being replied to.
+
+  MessageReferences:
+    type: list<string>
+    docs: IDs of previous messages in thread.
+
+  MessageHeaders:
+    type: map<string, string>
+    docs: |
+      Headers in message. `Authentication-Results` is never included, on received or sent
+      messages: the header is unsigned, so a sender can plant a forged copy. Read
+      `authentication_results` for the verdicts instead. Get Raw Message still returns every copy
+      of the header.
+
+  MessageAuthenticationVerdict:
+    enum:
+      - pass
+      - fail
+      - none
+      - neutral
+      - softfail
+      - temperror
+      - permerror
+    docs: |
+      Result of one email authentication mechanism, in the vocabulary of the
+      `Authentication-Results` header (RFC 8601). `none` means there was nothing to evaluate
+      (Amazon SES calls this GRAY): no SPF record for the envelope MAIL FROM domain, no DKIM
+      signature to check, or no DMARC record for the From domain.
+
+  MessageAuthenticationDomain:
+    type: string
+    docs: |
+      The domain an authentication verdict is about, lowercase. Present only beside its verdict:
+      when the verdict is withheld, so is the domain.
+
+  MessageAuthenticationResults:
+    docs: |
+      Per-mechanism SPF, DKIM, and DMARC verdicts for a received message, each with the domain it
+      is about, kept only where they speak for the sender's From identity. A verdict that could
+      not be computed is absent, so the field can be `{}`. The field is absent on sent messages
+      and on messages received before 2026-09-09; the `*_domain` and `arc_sealer` keys appear on
+      messages received after they were introduced.
+
+      The verdicts are the ones Amazon SES computed when the message reached AgentMail, with one
+      exception. Forwarded mail fails DMARC at the receiving hop by construction. When AgentMail
+      delivers a forwarded message as authenticated because a trusted forwarder (such as Google or
+      Microsoft) sealed a valid ARC chain vouching for the original, the field reports the
+      verdicts that forwarder recorded for the original message, and `arc_sealer` names it.
+
+      - `spf` is about the envelope MAIL FROM (Return-Path) domain, named in `spf_domain`. It is
+        present only when that domain is aligned with the sender's domain (the From mailbox, or
+        the Sender header when From spans domains), meaning the two share an organizational
+        domain: `mail.example.com` is aligned with `example.com`. An unaligned SPF result is
+        withheld whatever its value.
+      - `dkim` is the DKIM verdict, and `dkim_domain` the signing domain (the `d=` tag). On
+        directly received mail the domain is named only when every DKIM signature on the message
+        is from the same domain; a message signed by more than one domain (a sender and its email
+        provider, for instance) keeps the verdict and omits the domain. `dkim_domain` is the
+        signing domain as written, so compare it with the From domain before relying on it.
+      - `dmarc` is the DMARC verdict for the From domain, named in `dmarc_domain`.
+      - `dkim` and `dmarc` are withheld when the From list spans more than one domain or could not
+        be fully parsed.
+      - On forwarded mail each sealed verdict is reported only when the domain the forwarder
+        recorded it for matches the message's current From domain. If the forwarder rewrote From,
+        or vouched for nothing, the field is `{}`.
+
+      The `unauthenticated` label, not this field, is AgentMail's acceptance decision, and it uses
+      a looser rule, so the two can disagree: a single-From message whose only pass is an
+      unaligned envelope SPF is delivered without the label while this field shows no pass. Use
+      the label to tell whether AgentMail accepted the message as legitimate, and this field to
+      see which domain each mechanism authenticated. Do not reject mail on `dmarc: fail` alone.
+    properties:
+      spf: optional<MessageAuthenticationVerdict>
+      dkim: optional<MessageAuthenticationVerdict>
+      dmarc: optional<MessageAuthenticationVerdict>
+      spf_domain:
+        type: optional<MessageAuthenticationDomain>
+        docs: Envelope MAIL FROM domain the `spf` verdict is about (`smtp.mailfrom`).
+      dkim_domain:
+        type: optional<MessageAuthenticationDomain>
+        docs: |
+          Signing domain the `dkim` verdict is about (`header.d`). Present only when `dkim` is
+          `pass` or `fail`.
+      dmarc_domain:
+        type: optional<MessageAuthenticationDomain>
+        docs: From domain the `dmarc` verdict is about (`header.from`).
+      arc_sealer:
+        type: optional<MessageAuthenticationDomain>
+        docs: |
+          Domain of the trusted forwarder whose ARC seal the verdicts were taken from, such as
+          `google.com`. Present only on forwarded mail, and only beside at least one verdict.
+
+  MessageSize:
+    type: integer
+    docs: Size of message in bytes.
+
+  MessageUpdatedAt:
+    type: datetime
+    docs: Time at which message was last updated.
+
+  MessageCreatedAt:
+    type: datetime
+    docs: Time at which message was created.
+
+  MessageCalendarEventId:
+    type: string
+    docs: |
+      The calendar event this email's invitation was applied to: set when the email's calendar
+      invitation, update, cancellation or attendee reply changed the inbox's calendar, a few seconds
+      after the email arrives. For an email about one date of a recurring event, it is that date's
+      event ID. Absent on other emails, and on invitations that were not imported. Calendar is in
+      AgentMail Labs.
+
+  MessageItem:
+    properties:
+      inbox_id: inboxes.InboxId
+      thread_id: threads.ThreadId
+      message_id: MessageId
+      labels: MessageLabels
+      timestamp: MessageTimestamp
+      from: MessageFrom
+      to: MessageTo
+      cc: optional<MessageCc>
+      bcc: optional<MessageBcc>
+      subject: optional<MessageSubject>
+      preview: optional<MessagePreview>
+      attachments: optional<MessageAttachments>
+      in_reply_to: optional<MessageInReplyTo>
+      calendar_event_id: optional<MessageCalendarEventId>
+      references: optional<MessageReferences>
+      headers: optional<MessageHeaders>
+      authentication_results: optional<MessageAuthenticationResults>
+      agent_armor:
+        type: optional<agentArmor.AgentArmorResult>
+        availability: beta
+      size: MessageSize
+      updated_at: MessageUpdatedAt
+      created_at: MessageCreatedAt
+
+  Message:
+    properties:
+      inbox_id: inboxes.InboxId
+      thread_id: threads.ThreadId
+      message_id: MessageId
+      labels: MessageLabels
+      timestamp: MessageTimestamp
+      from: MessageFrom
+      reply_to:
+        type: optional<list<string>>
+        docs: Reply-to addresses. In format `username@domain.com` or `Display Name <username@domain.com>`.
+      to: MessageTo
+      cc: optional<MessageCc>
+      bcc: optional<MessageBcc>
+      subject: optional<MessageSubject>
+      preview: optional<MessagePreview>
+      text: optional<MessageText>
+      html: optional<MessageHtml>
+      extracted_text:
+        type: optional<string>
+        docs: Extracted new text content.
+      extracted_html:
+        type: optional<string>
+        docs: Extracted new HTML content.
+      attachments: optional<MessageAttachments>
+      in_reply_to: optional<MessageInReplyTo>
+      calendar_event_id: optional<MessageCalendarEventId>
+      references: optional<MessageReferences>
+      headers: optional<MessageHeaders>
+      authentication_results: optional<MessageAuthenticationResults>
+      agent_armor:
+        type: optional<agentArmor.AgentArmorResult>
+        availability: beta
+      size: MessageSize
+      updated_at: MessageUpdatedAt
+      created_at: MessageCreatedAt
+
+  ListMessagesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      messages:
+        type: list<MessageItem>
+        docs: Ordered by `timestamp` descending.
+
+  SearchMessageHighlights:
+    docs: |
+      Matched fragments per field on a message search result, with matched terms
+      wrapped in `**`. A field key is present only when the query matched that
+      field, so the present keys also tell you which fields produced the hit.
+    properties:
+      from:
+        type: optional<list<string>>
+        docs: Matched fragments from the sender address.
+      recipients:
+        type: optional<list<string>>
+        docs: Matched fragments from the recipient addresses (to, cc, or bcc).
+      subject:
+        type: optional<list<string>>
+        docs: Matched fragments from the subject.
+      text:
+        type: optional<list<string>>
+        docs: Matched fragments from the message body.
+
+  SearchMessageItem:
+    extends: MessageItem
+    properties:
+      highlights:
+        type: optional<SearchMessageHighlights>
+        docs: Matched fragments per field. Present only when the query matched an indexed field.
+
+  SearchMessagesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      messages:
+        type: list<SearchMessageItem>
+        docs: Ordered by relevance, best match first.
+
+  BatchGetMessagesMessageIds:
+    type: list<MessageId>
+    docs: |
+      IDs of messages to fetch. Maximum 500 ids per request. Duplicates are
+      rejected with a validation error. IDs not found in the inbox (including
+      cross-inbox or permission-restricted) are silently omitted from the
+      response; callers detect misses by comparing `count` against `limit`.
+
+  BatchGetMessagesRequest:
+    properties:
+      message_ids: BatchGetMessagesMessageIds
+
+  BatchGetMessagesResponse:
+    properties:
+      limit: global.Limit
+      count: global.Count
+      messages:
+        type: list<Message>
+        docs: |
+          Found messages. Order matches `message_ids` in the request. Body
+          fields (`text`, `html`, `extracted_text`, `extracted_html`) are
+          never populated; use the single-message endpoint to retrieve bodies.
+
+  BatchUpdateMessagesMessageIds:
+    type: list<MessageId>
+    docs: |
+      IDs of messages to update. Maximum 50 ids per request. Duplicates are
+      rejected with a validation error. IDs not found in the inbox (including
+      cross-inbox or permission-restricted) are silently excluded from the
+      update; callers detect exclusions by comparing `count` against `limit`.
+
+  BatchUpdateMessagesRequest:
+    properties:
+      message_ids: BatchUpdateMessagesMessageIds
+      add_labels:
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to add to every message.
+      remove_labels:
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to remove from every message.
+
+  BatchUpdateMessagesResponse:
+    properties:
+      limit: global.Limit
+      count: global.Count
+      updates:
+        type: list<UpdateMessageResponse>
+        docs: |
+          Updated messages with their new labels. Order matches `message_ids`
+          in the request. Excluded ids are omitted, so `count` may be less than
+          `limit`.
+
+  RawMessageResponse:
+    docs: CloudFront signed URL to download the raw .eml file.
+    properties:
+      message_id:
+        type: MessageId
+        docs: ID of the message.
+      size:
+        type: MessageSize
+        docs: Size of the raw message in bytes.
+      download_url:
+        type: string
+        docs: CloudFront signed URL to download the raw message. Expires at expires_at.
+      expires_at:
+        type: datetime
+        docs: Time at which the download URL expires.
+
+  Addresses:
+    discriminated: false
+    union:
+      - string
+      - list<string>
+
+  SendMessageReplyTo:
+    type: Addresses
+    docs: Reply-to address or addresses.
+
+  SendMessageTo:
+    type: Addresses
+    docs: Recipient address or addresses.
+
+  SendMessageCc:
+    type: Addresses
+    docs: CC recipient address or addresses.
+
+  SendMessageBcc:
+    type: Addresses
+    docs: BCC recipient address or addresses.
+
+  SendMessageAttachments:
+    type: list<attachments.SendAttachment>
+    docs: Attachments to include in message.
+
+  SendMessageHeaders:
+    type: map<string, string>
+    docs: Headers to include in message.
+
+  TrackOpens:
+    type: boolean
+    docs: |
+      Track when this message is first opened. Requires a custom domain with tracking enabled and
+      an HTML body. Opens surface as the `opened` label on the message and as a `message.opened`
+      event. One pixel is injected per message, not per recipient, so a message with several
+      recipients fires once when any of them opens it, and the event does not identify which one.
+
+  SendMessageRequest:
+    properties:
+      labels: optional<MessageLabels>
+      reply_to: optional<SendMessageReplyTo>
+      to: optional<SendMessageTo>
+      cc: optional<SendMessageCc>
+      bcc: optional<SendMessageBcc>
+      subject: optional<MessageSubject>
+      text: optional<MessageText>
+      html: optional<MessageHtml>
+      attachments: optional<SendMessageAttachments>
+      headers: optional<SendMessageHeaders>
+      track_opens: optional<TrackOpens>
+
+  SendMessageResponse:
+    properties:
+      message_id: MessageId
+      thread_id: threads.ThreadId
+
+  UpdateMessageResponse:
+    properties:
+      message_id: MessageId
+      labels: MessageLabels
+
+  ReplyAll:
+    type: boolean
+    docs: Reply to all recipients of the original message.
+
+  ReplyToMessageRequest:
+    properties:
+      labels: optional<MessageLabels>
+      reply_to: optional<SendMessageReplyTo>
+      to: optional<SendMessageTo>
+      cc: optional<SendMessageCc>
+      bcc: optional<SendMessageBcc>
+      reply_all: optional<ReplyAll>
+      text: optional<MessageText>
+      html: optional<MessageHtml>
+      attachments: optional<SendMessageAttachments>
+      headers: optional<SendMessageHeaders>
+      track_opens: optional<TrackOpens>
+
+  ReplyAllMessageRequest:
+    properties:
+      labels: optional<MessageLabels>
+      reply_to: optional<SendMessageReplyTo>
+      text: optional<MessageText>
+      html: optional<MessageHtml>
+      attachments: optional<SendMessageAttachments>
+      headers: optional<SendMessageHeaders>
+      track_opens: optional<TrackOpens>
+
+  UpdateMessageLabels:
+    discriminated: false
+    union:
+      - string
+      - list<string>
+    docs: Label or list of labels.
+
+  UpdateMessageRequest:
+    properties:
+      add_labels:
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to add to message.
+      remove_labels:
+        type: optional<UpdateMessageLabels>
+        docs: Label or labels to remove from message.
+
+errors:
+  MessageRejectedError:
+    status-code: 403
+    type: global.ErrorResponse

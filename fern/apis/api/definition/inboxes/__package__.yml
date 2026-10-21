@@ -1,0 +1,306 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fern-api/fern/main/fern.schema.json
+
+navigation:
+  - threads.yml
+  - messages.yml
+  - drafts.yml
+  - webhooks.yml
+  - lists.yml
+  - metrics.yml
+  - events.yml
+  - api-keys.yml
+  - accounts.yml
+  - calendar.yml
+  - files.yml
+
+imports:
+  global: ../__package__.yml
+  pods: ../pods/__package__.yml
+  api-keys: ../api-keys.yml
+  apps: ../apps.yml
+
+types:
+  InboxId:
+    type: string
+    docs: The ID of the inbox.
+
+  Email:
+    type: string
+    docs: Email address of the inbox.
+
+  DisplayName:
+    type: string
+    docs: "Display name: `Display Name <username@domain.com>`."
+
+  ClientId:
+    type: string
+    docs: Client ID of inbox.
+
+  MetadataValue:
+    discriminated: false
+    union:
+      - string
+      - double
+      - boolean
+    docs: A metadata value. May be a string, number, or boolean.
+
+  Metadata:
+    type: map<string, MetadataValue>
+    docs: |
+      Custom key-value pairs attached to the inbox. Up to 256 keys. Keys and
+      string values are each limited to 256 characters. When updating metadata,
+      send a key with a null value to remove that key.
+
+  UpdateMetadata:
+    type: map<string, nullable<MetadataValue>>
+    docs: |
+      Custom key-value pairs to merge into the inbox's existing metadata. A
+      value may be a string, number, boolean, or null. Setting a key to null
+      removes it. Up to 256 keys; keys and string values are each limited to
+      256 characters.
+
+  InboxStatus:
+    enum:
+      - active
+      - paused
+    docs: |
+      Whether the inbox sends and receives mail. `paused` stops both: sends
+      return `403` with code `inbox_paused`, and incoming mail is not
+      delivered and not bounced, then or on resume. Mail already in the inbox,
+      its drafts, and its API keys are kept. Set `active` to resume.
+
+  Inbox:
+    properties:
+      pod_id: pods.PodId
+      inbox_id: InboxId
+      email: Email
+      display_name: optional<DisplayName>
+      client_id: optional<ClientId>
+      status:
+        type: optional<InboxStatus>
+        docs: |
+          `paused` when the inbox is paused. Omitted when the inbox is active.
+          Treat any value other than `paused` as an inbox that sends and
+          receives normally.
+      metadata:
+        type: optional<Metadata>
+        docs: Custom metadata attached to the inbox.
+      updated_at:
+        type: datetime
+        docs: Time at which inbox was last updated.
+      created_at:
+        type: datetime
+        docs: Time at which inbox was created.
+
+  ListInboxesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      inboxes:
+        type: list<Inbox>
+        docs: Ordered by `created_at` descending.
+
+  SearchInboxesResponse:
+    properties:
+      count: global.Count
+      limit: optional<global.Limit>
+      next_page_token: optional<global.PageToken>
+      inboxes:
+        type: list<Inbox>
+        docs: Ordered by relevance, best match first.
+
+  CreateInboxRequest:
+    properties:
+      username:
+        type: optional<string>
+        docs: Username of address. Randomly generated if not specified.
+      domain:
+        type: optional<string>
+        docs: |
+          Domain of address. Must be a verified domain, or any subdomain of a
+          verified domain that has subdomains enabled (e.g., `bot.example.com`).
+          Defaults to `agentmail.to`.
+      display_name: optional<DisplayName>
+      client_id: optional<ClientId>
+      status:
+        type: optional<InboxStatus>
+        docs: Set `paused` to create the inbox paused.
+      metadata:
+        type: optional<Metadata>
+        docs: Custom metadata to attach to the inbox.
+
+  UpdateInboxRequest:
+    properties:
+      display_name: optional<DisplayName>
+      status:
+        type: optional<InboxStatus>
+        docs: |
+          `paused` stops the inbox sending and receiving mail; `active` resumes
+          it. Mail that arrived while the inbox was paused is not delivered on
+          resume.
+      metadata:
+        type: optional<nullable<UpdateMetadata>>
+        docs: |
+          Metadata to merge into the inbox's existing metadata. Keys you include
+          are added or overwritten; keys you omit are left unchanged. To remove a
+          single key, send it with a null value. To clear all metadata, send
+          `metadata` as null. Sending an empty object is rejected; use null to
+          clear. Each update must include at least one of `display_name`,
+          `status`, or `metadata`.
+
+  AuthorizeInboxRequest:
+    docs: |
+      Authorize one pending AgentID sign-in for the inbox in the path. The
+      inbox is selected by the trusted path parameter, never by an AgentID
+      `login_hint`.
+    properties:
+      auth_token: api-keys.AuthToken
+      accept_disclosure: optional<api-keys.AcceptDisclosure>
+
+  AuthorizeInboxResponse:
+    docs: |
+      The authorized sign-in's key ID plus the agent's next step. The key itself
+      is read with Get API Key.
+    properties:
+      api_key_id:
+        type: api-keys.ApiKeyId
+        docs: ID of the public key the client will activate.
+      instructions:
+        type: literal<"Authorization complete. Return to browser.">
+        docs: The agent's next step. Nothing further is required from the agent.
+
+service:
+  url: Http
+  base-path: /inboxes
+  auth: true
+
+  endpoints:
+    list:
+      method: GET
+      path: ""
+      display-name: List Inboxes
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes list
+        ```
+      request:
+        name: ListInboxesRequest
+        query-parameters:
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+          ascending: optional<global.Ascending>
+      response: ListInboxesResponse
+
+    search:
+      method: GET
+      path: /search
+      display-name: Search Inboxes
+      docs: |
+        Searches inboxes in the organization by address or display name, ranked
+        by relevance. Each word in the query matches the start of a word in the
+        address or display name, so `sup` matches `support@example.com` but
+        `port` does not. An exact address match always ranks first. `limit`
+        cannot exceed 100. A page can be empty and still carry a
+        `next_page_token`; keep paging until the token is absent.
+      request:
+        name: SearchInboxesRequest
+        query-parameters:
+          q:
+            type: string
+            docs: Address or display name to search for. Matches word prefixes. Must be 2 to 256 characters.
+          limit: optional<global.Limit>
+          page_token: optional<global.PageToken>
+      response: SearchInboxesResponse
+      errors:
+        - global.ValidationError
+
+    get:
+      method: GET
+      path: /{inbox_id}
+      display-name: Get Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes get --inbox-id <inbox_id>
+        ```
+      path-parameters:
+        inbox_id: InboxId
+      response: Inbox
+      errors:
+        - global.NotFoundError
+
+    create:
+      method: POST
+      path: ""
+      display-name: Create Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes create --display-name "My Agent" --username myagent --domain agentmail.to
+        ```
+      request: optional<CreateInboxRequest>
+      response: Inbox
+      errors:
+        - global.ValidationError
+        - global.UnprocessableError
+
+    update:
+      method: PATCH
+      path: /{inbox_id}
+      display-name: Update Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes update --inbox-id <inbox_id> --display-name "Updated Name"
+        ```
+
+        To pause an inbox, set `status` to `paused`; set it back to `active` to
+        resume. See [Pausing an inbox](/inboxes#pausing-an-inbox).
+      path-parameters:
+        inbox_id: InboxId
+      request:
+        body:
+          type: UpdateInboxRequest
+          docs: Expects an object; provide at least one of `display_name`, `status`, or `metadata`.
+      response: Inbox
+      errors:
+        - global.NotFoundError
+        - global.ValidationError
+        - global.ConflictError
+
+    delete:
+      method: DELETE
+      path: /{inbox_id}
+      display-name: Delete Inbox
+      docs: |
+        **CLI:**
+        ```bash
+        agentmail inboxes delete --inbox-id <inbox_id>
+        ```
+      path-parameters:
+        inbox_id: InboxId
+      errors:
+        - global.NotFoundError
+
+    authorize:
+      method: POST
+      path: /{inbox_id}/authorize
+      display-name: Authorize Inbox
+      docs: |
+        Authorizes the AgentID sign-in a client is already waiting in, for the
+        inbox in the path, and returns the ID of the pending public key it will
+        activate. Read the key with Get API Key. A repeat for the same token,
+        inbox, and bearer returns the same key ID. A `403` `AppSignupLimitError`
+        means the app accepts no more sign-ups from your organization.
+      path-parameters:
+        inbox_id: InboxId
+      request: AuthorizeInboxRequest
+      response:
+        status-code: 202
+        type: AuthorizeInboxResponse
+      errors:
+        - global.ValidationError
+        - global.NotFoundError
+        - apps.AppSignupLimitError

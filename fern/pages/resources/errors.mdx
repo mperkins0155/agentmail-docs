@@ -32,6 +32,10 @@ The endpoint requires an API key, but the request carried a console session toke
 
 The API key was not recognized. Confirm you copied the full value (keys start with `am_`) and that the key has not been revoked. Create a new key at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`.
 
+### api_key_expired
+
+The API key is valid but its `expires_at` has passed, so it no longer authenticates. Expiry is set when a key is created and cannot be extended or changed. Create a new key at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`, choosing its lifetime with `expires_at`, and retry with it. Depending on how the request is routed, an expired key can instead be refused with a bare `403` whose body is `{"message":"Forbidden"}`; the remedy is the same.
+
 ### unauthorized
 
 Generic authentication failure. Send a valid API key in the `Authorization: Bearer <api_key>` header. Create or rotate keys at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`.
@@ -40,7 +44,7 @@ Generic authentication failure. Send a valid API key in the `Authorization: Bear
 
 ### missing_permission
 
-The credential lacks a specific required permission (for example `message_send`). For backward compatibility the `message` stays `Forbidden` (event-type permission checks on webhooks and WebSocket subscriptions keep their own legacy form, `<permission> is forbidden`); the missing permission is named in the `fix`. The `fix` also names the remedy for the actual cause: a restricted key may need the permission granted (retry with a key that includes it, or create one via `POST /v0/api-keys` from a credential that already holds it — a key cannot grant a permission it lacks), while other denials come from the credential's scope or the organization's state, where creating another key at the same scope cannot help — for example `organization_read` requires an organization-scoped key, some permissions (like creating API keys or send-list entries) require completing agent verification via `POST /v0/agent/verify` first, and `agent_verify` itself is only available while an unverified agent organization still needs verification.
+The credential lacks a specific required permission (for example `message_send`). For backward compatibility the `message` stays `Forbidden` (event-type permission checks on webhooks and WebSocket subscriptions keep their own legacy form, `<permission> is forbidden`); the missing permission is named in the `fix`. The `fix` also names the remedy for the actual cause: a restricted key may need the permission granted (retry with a key that includes it, or create one via `POST /v0/api-keys` from a credential that already holds it — a key cannot grant a permission it lacks), while other denials come from the credential's scope or the organization's state, where creating another key at the same scope cannot help — for example `organization_read` requires an organization-scoped key, some permissions (like creating API keys, send-list entries, or pods) require completing agent verification via `POST /v0/agent/verify` first (an agent that signed up without a human email attaches one with `POST /v0/agent/human` before it can verify), and `agent_verify` itself is only available while an unverified agent organization still needs verification.
 
 ### permission_escalation
 
@@ -50,9 +54,11 @@ A create or update API key request asked for a permission the calling key does n
 
 Creating an unrestricted child key (`permissions: null`), clearing a key's permissions, or changing the permissions of a currently-unrestricted key requires an unrestricted credential: a dashboard session or an API key stored without a permissions attribute. Retry with one; the `fix` on the response says which gate fired.
 
+Joining AgentMail Labs (`POST /v0/organizations/labs`) is stricter: it needs an organization-scoped API key with no permissions restriction, and a dashboard session doesn't qualify. Retry with such a key, or have an organization admin join in the console under Settings, then Labs.
+
 ### forbidden
 
-The authenticated API key is not allowed to perform this action, usually because of its scope (organization, pod, or inbox). Retry with a key whose scope and permissions cover this resource.
+The authenticated API key is not allowed to perform this action, usually because of its scope (organization, pod, or inbox). Retry with a key whose scope and permissions cover this resource. Calendar endpoints also return `forbidden` in EU production (`api.agentmail.eu`), where Calendar isn't available yet; a different key won't fix that.
 
 ## Request errors (400 / 404 / 422)
 
@@ -70,7 +76,7 @@ The request was well-formed but cannot be processed as-is (for example, a send w
 
 ### query_range_too_wide
 
-A metrics query requested too wide a time range. Narrow the requested time range, or increase the period/bucket size, then retry.
+A metrics query requested too wide a time range, or a calendar list asked for an `after` to `before` window wider than 366 days (or one holding too many dates of a recurring event). Narrow the requested time range, or increase the metrics period/bucket size, then retry.
 
 ## Resource state (403 / 409)
 
@@ -84,7 +90,7 @@ The requested value (for example, an inbox username) is already in use. Choose a
 
 ### limit_exceeded
 
-A resource limit has been reached (for example, the webhook endpoint limit). Remove an existing resource before adding another, or email support@agentmail.to to raise your limit. For agent-verification OTP attempts, the `fix` distinguishes the two states: while the exhausted code is still live, every submission is rejected (even the correct code) until it expires 24 hours from issue, after which `POST /v0/agent/sign-up` issues a fresh code with a reset attempt count; if the code has already expired, sign up again immediately.
+A resource limit has been reached (for example, the webhook endpoint limit). Remove an existing resource before adding another, or email support@agentmail.cc to raise your limit. For agent-verification OTP attempts, the `fix` distinguishes the two states: while the exhausted code is still live, every submission is rejected (even the correct code) until it expires 24 hours from issue, after which `POST /v0/agent/sign-up` issues a fresh code with a reset attempt count; if the code has already expired, sign up again immediately.
 
 ### domain_not_verified
 
@@ -96,7 +102,7 @@ The request conflicts with another request under the same `Idempotency-Key`. Eit
 
 ### race_condition
 
-A concurrent modification conflicted with your request. Re-fetch the resource to get its latest state, then retry.
+A concurrent modification conflicted with your request. Re-fetch the resource to get its latest state, then retry. A calendar change sent without `If-Match` returns this when the resource changed while the request ran. A calendar event create also returns this when the calendar is at its event limit, where retrying cannot help: check `event_count` with Get Calendar.
 
 ### resource_deleting
 
@@ -106,22 +112,132 @@ The resource is currently being deleted and cannot be used. Wait for deletion to
 
 The resource cannot be deleted yet, usually because dependent resources still exist. Resolve the blocker described in the message, then retry.
 
+## Calendar (409 / 410 / 412 / 428)
+
+These codes come from the [calendar API](/calendar). See [Concurrency, Limits & Errors](/calendar-reference) for how ETags and retries work.
+
+### precondition_required
+
+The request needs an `If-Match` header and has none (`428`). Read the resource, copy its `etag` into `If-Match`, and retry. Public calendar endpoints accept requests without `If-Match`.
+
+### precondition_failed
+
+The resource changed since the version in your `If-Match` was read (`412`). The body includes `current_revision`. Read the resource again, reapply your change and retry with its new `etag`.
+
+### idempotency_conflict
+
+The `client_id` on a create was already used for a different event request, or a delete's `Idempotency-Key` was already used to delete a different event (`409`). Delete keys are unique across your organization. Reuse a `client_id` or key only to retry the identical request, or choose a new one.
+
+### event_starting
+
+The event or date is starting at this moment, so its schedule cannot change for a few seconds (`409`). Retry shortly. Once it has started, its end and status can still change.
+
+### event_already_started
+
+The event or date has already started, so its start can no longer change, or it has ended, so only its title, description, location, metadata and attendees can change (`409`). Send the unchanged start with a new end, or change only the status, or apply a wider change from a later date.
+
+### event_in_progress
+
+The change conflicts with edits already made (`409`): a recurring event with edited dates cannot become a one-off event, or a date first edited with one `mode` was changed with the other. Create a replacement event, or repeat the change with the date's original `mode`.
+
+### future_edit_start_move_not_supported
+
+A `mode=future` change tried to move `start` (`409`). Use `mode=single` to move one date, or update the series to move every date.
+
+### recurrence_density_limit
+
+The recurrence produces more than 730 dates in some 90-day window (`409`). Increase `INTERVAL`, add `COUNT` or `UNTIL`, remove extra dates, or use a lower `FREQ`.
+
+### materialization_failed
+
+The recurrence's first date could not be found within the evaluation bound (`409`). Add `COUNT` or `UNTIL`, or simplify the rule.
+
+### page_token_stale
+
+The recurring event changed while you were paging through its dates (`409`). Restart the list without `page_token`.
+
+### calendar_response_invalid
+
+The calendar cannot do this for the event (`409`): only events the inbox organizes can send invitations or cancellations, and only invitations the inbox received (where it is an attendee) can be responded to.
+
+### calendar_inbox_required
+
+Sending invitations or cancellations needs the inbox the calendar belongs to (`409`). Every calendar is linked to its inbox, so this is not expected in normal use. If you see it, email [support@agentmail.cc](mailto:support@agentmail.cc); retrying with `send_invites` set to `false` applies the change without emailing attendees.
+
+### event_expired
+
+The date ended more than 30 days ago and its record is no longer kept, or it was removed from its series (`410`). It can no longer be read or changed.
+
 ## Sending (403)
 
 ### message_rejected
 
 The message was not sent. The message names the reason, and the `fix` states which case applies:
 
-- **Recipients on a send block list** — remove them from the request, or delete the matched block entry. The `fix` names the stored entry (which may be a domain rather than the recipient address) and the exact `DELETE /v0/…/lists/send/block/{entry}` path at the scope where it lives. Deleting an entry at a broader scope than your key (an organization-level block hit by a pod- or inbox-scoped key) requires a key scoped at that level. Read-only entries — added automatically from bounces, complaints, and unsubscribes — cannot be deleted via the API; email support@agentmail.to to have one reviewed.
-- **Recipients missing from an active send allow list** — add them via `POST /v0/lists/send/allow` (there is no block entry to delete). On an agent organization that has not completed verification, sending is restricted to the human's email and list entries cannot be created yet — complete `POST /v0/agent/verify` instead.
-- **A suspended account** — email support@agentmail.to; retrying will keep failing until the suspension is resolved.
-- **An unfetchable attachment URL** — use a URL that returns 200 without authentication, or send the attachment inline as base64.
+- **Recipients on a send block list** — remove them from the request, or delete the matched block entry. The `fix` names the stored entry (which may be a domain rather than the recipient address) and the exact `DELETE /v0/…/lists/send/block/{entry}` path at the scope where it lives. Deleting an entry at a broader scope than your key (an organization-level block hit by a pod- or inbox-scoped key) requires a key scoped at that level. Read-only entries — added automatically from bounces, complaints, and unsubscribes — cannot be deleted via the API; email support@agentmail.cc to have one reviewed.
+- **Recipients missing from an active send allow list** — add them via `POST /v0/lists/send/allow` (there is no block entry to delete). On an agent organization that has not completed verification, sending is restricted to the human's email and list entries cannot be created yet — complete `POST /v0/agent/verify` instead. If no human email is attached yet, sending is blocked for every recipient until one is attached with `POST /v0/agent/human`.
+- A suspended account, inbox, or pod is not `message_rejected`: it returns [`account_suspended`](#account_suspended), [`inbox_suspended`](#inbox_suspended), or [`pod_suspended`](#pod_suspended).
+- **An unfetchable attachment URL** — use a URL that AgentMail can download without custom authentication headers or cookies, or send the attachment inline as Base64. Redirects and pre-signed URLs are supported, and the final response must be a successful 2xx response.
+
+### account_suspended
+
+The organization is suspended (`403`). AgentMail weighs signals such as bounce and complaint rates and may suspend an account's sending; the response's `suspended_reason` field says why, in a short machine-readable form such as `message.bounced` or `message.complained`.
+
+While the account is suspended:
+
+- **Sending is blocked** on every path: send, reply, reply-all, forward, and draft send. A scheduled draft fails instead of sending. Some other operations, such as creating inboxes, also return `account_suspended`.
+- **Receiving continues.** Inbound mail is still accepted and stored, webhooks and WebSocket events still fire, and API reads keep working, so your agent can still list and read its messages.
+
+No change to the request clears this, so retrying keeps failing until the suspension is resolved. Email [support@agentmail.cc](mailto:support@agentmail.cc). `GET /v0/organizations` returns `suspended_at` and `suspended_reason`, so an agent can check its own status.
+
+```json
+{
+  "name": "AccountSuspendedError",
+  "code": "account_suspended",
+  "message": "Message rejected: Your account has been suspended due to a high email bounce rate. Please contact support for assistance.",
+  "fix": "Sending is disabled while the account is suspended. Email support@agentmail.cc to resolve the suspension; retrying will keep failing until then.",
+  "suspended_reason": "message.bounced",
+  "docs": "https://docs.agentmail.to/errors#account_suspended"
+}
+```
+
+### inbox_suspended
+
+Sending from this inbox is suspended for its bounce or complaint rate (`403`); `suspended_reason` says which. Other inboxes in your organization are unaffected and keep sending. The inbox still receives mail, and webhooks and WebSocket events for it still fire. A scheduled draft from the inbox fails instead of sending. Resuming a paused inbox does not lift a suspension; email [support@agentmail.cc](mailto:support@agentmail.cc).
+
+### pod_suspended
+
+Sending from the inboxes in this pod is suspended for the pod's bounce or complaint rate (`403`); `suspended_reason` says which. Other pods in your organization are unaffected and keep sending. Inboxes in the pod still receive mail, and webhooks and WebSocket events still fire. Email [support@agentmail.cc](mailto:support@agentmail.cc) to resolve it.
+
+### inbox_paused
+
+The inbox is paused, so it cannot send. Resume it with `PATCH /v0/inboxes/{inbox_id}` and `{"status": "active"}` using a key with the `inbox_update` permission, then send again. Mail that arrived while the inbox was paused was dropped and is not delivered on resume. See [Pausing an inbox](/inboxes#pausing-an-inbox).
+
+If the inbox has also been suspended for its bounce or complaint rate, the send reports that suspension instead. A suspension of the inbox's pod is reported only after the inbox is resumed. Resuming the inbox does not lift either suspension: email support@agentmail.cc.
+
+## Request too large (413)
+
+Oversized inline attachment requests return an infrastructure-generated response:
+
+```json
+{ "message": "Request Entity Too Large" }
+```
+
+This response is an exception to the standard `code`, `fix`, and `docs` error envelope. It only contains `message`.
+
+Requests with inline `content` attachments are limited to 6 MB total, including the message body, metadata, and attachment content.
+
+Reduce the attachment size or provide larger attachments through the `url` field. Keep URL-backed attachments around 30 MB total per message.
+
+### payload_too_large
+
+A calendar request body is larger than its limit: 128 KB for events, 8 KB for calendar settings. Unlike the response above, this one uses the standard error envelope. Shorten the description or metadata and retry.
 
 ## Transient errors (429 / 500 / 503)
 
 ### rate_limit_exceeded
 
-You are sending requests too quickly or have hit a usage limit. Honor the `Retry-After` header when present, and retry with exponential backoff.
+You are sending requests too quickly or have hit a usage limit, including the send limits that calendar invitation emails count toward. Honor the `Retry-After` header when present, and retry with exponential backoff. A calendar request rejected for its invitation emails changed nothing; retry it later, or without `send_invites`.
 
 ### service_unavailable
 
@@ -129,4 +245,4 @@ A downstream service is temporarily unavailable. Retry the request after a short
 
 ### internal_error
 
-A server-side error, not a problem with your request. Retry with exponential backoff; if it persists, email support@agentmail.to.
+A server-side error, not a problem with your request. Retry with exponential backoff; if it persists, email support@agentmail.cc.
