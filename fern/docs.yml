@@ -103,6 +103,21 @@ experimental:
 default-language: python
 
 redirects:
+  - source: /auth.md
+    destination: https://www.agentmail.to/auth.md
+    permanent: true
+  - source: /agent-auth-quickstart
+    destination: /agent-onboarding
+    permanent: true
+  # The agentmail.to homepage setup prompt used to send agents to /get-started/agent-signup,
+  # which never existed. Copies of that prompt are still in agents' context and users' notes.
+  - source: /get-started/agent-signup
+    destination: /agent-onboarding
+    permanent: true
+  - source: /agent-signup
+    destination: /agent-onboarding
+    permanent: true
+
   - source: /agentid-browser-enrollment
     destination: /agentid-sign-in
     permanent: true
@@ -110,8 +125,16 @@ redirects:
   - source: /integrations/moltbot
     destination: /integrations/openclaw
     permanent: true
+  # The page's slug is bare (/agent-onboarding) even though its file sits in pages/integrations/.
+  # /integrations/agent-onboarding never served a page, so the old redirect here landed on a 404.
   - source: /integrations/ai-onboarding
-    destination: /integrations/agent-onboarding
+    destination: /agent-onboarding
+    permanent: true
+  - source: /integrations/agent-onboarding
+    destination: /agent-onboarding
+    permanent: true
+  - source: /ai-onboarding
+    destination: /agent-onboarding
     permanent: true
   - source: /talon-reply-extraction
     destination: /reply-extraction
@@ -234,6 +257,12 @@ redirects:
     destination: /quickstart
   - source: /pods/
     destination: /documentation/core-concepts/pods
+  # No page lives under /get-started/: its pages use bare slugs (/welcome, /quickstart,
+  # /agent-onboarding). Keep this last so the specific /get-started/* redirects above win.
+  - source: /get-started/:slug*
+    destination: /:slug*
+  - source: /get-started
+    destination: /welcome
 
 navigation:
   - tab: docs
@@ -249,6 +278,9 @@ navigation:
           - page: Quickstart
             icon: fa-solid fa-bolt
             path: pages/get-started/quickstart.mdx
+          - page: Agent Onboarding
+            icon: fa-solid fa-user-plus
+            path: pages/integrations/agent-onboarding.mdx
           # - page: What is AgentMail?
           #   path: pages/get-started/what-is-agentmail.mdx
       - section: Core Concepts
@@ -271,6 +303,9 @@ navigation:
           - page: Lists
             icon: fa-solid fa-filter
             path: pages/core-concepts/lists.mdx
+          - page: Auto-forwarding
+            icon: fa-solid fa-share
+            path: pages/core-concepts/auto-forwarding.mdx
           - page: Attachments
             icon: fa-solid fa-paperclip
             path: pages/core-concepts/attachments.mdx
@@ -316,9 +351,6 @@ navigation:
             availability: beta
       - section: Integrations
         contents:
-          - page: Agent Onboarding
-            icon: fa-solid fa-user-plus
-            path: pages/integrations/agent-onboarding.mdx
           # - page: Overview
           #   icon: fa-solid fa-list
           #   path: pages/integrations/overview.mdx
@@ -373,6 +405,9 @@ navigation:
           - page: Sim.ai
             icon: fa-solid fa-diagram-project
             path: pages/integrations/sim.mdx
+          - page: HydraDB
+            icon: fa-solid fa-brain
+            path: pages/integrations/hydradb.mdx
           # - page: Smithery
           #   path: pages/integrations/smithery.mdx
           # - page: Mastra
@@ -402,6 +437,9 @@ navigation:
           - page: Multi-Tenancy
             icon: fa-solid fa-building
             path: pages/guides/multi-tenancy.mdx
+          - page: SCIM Provisioning
+            icon: fa-solid fa-users-gear
+            path: pages/guides/scim.mdx
           # - page: Semantic Search
           #   path: pages/guides/semantic-search.mdx
           # - page: Automatic Labeling
@@ -417,6 +455,9 @@ navigation:
               - page: Managing Existing Domains
                 icon: fa-solid fa-gear
                 path: pages/guides/domains/managing-domains.mdx
+          - page: Open Tracking
+            icon: fa-solid fa-envelope-open
+            path: pages/guides/open-tracking.mdx
           - page: Google Workspace
             icon: fa-brands fa-google
             path: pages/guides/google-workspace.mdx
@@ -538,7 +579,9 @@ navigation:
           - webhooks
           - websockets
           - domains
+          - credentials
           - lists
+          - forwarding
           - metrics
           - api-keys
           - apps
@@ -604,7 +647,7 @@ navigation:
           - page: Using labels to track state
             icon: fa-solid fa-tags
             path: pages/knowledge-base/labels-track-state.mdx
-          - page: Knowing when an email is opened
+          - page: Open tracking
             icon: fa-solid fa-envelope-open
             path: pages/knowledge-base/open-tracking.mdx
       - section: Domains & Deliverability
@@ -618,6 +661,9 @@ navigation:
           - page: SPF, DKIM, and DMARC setup
             icon: fa-solid fa-shield-halved
             path: pages/knowledge-base/spf-dkim-dmarc.mdx
+          - page: Why DKIM keys are 1024-bit
+            icon: fa-solid fa-key
+            path: pages/knowledge-base/dkim-key-size.mdx
           - page: Emails going to spam
             icon: fa-solid fa-triangle-exclamation
             path: pages/knowledge-base/emails-going-to-spam.mdx

@@ -6,7 +6,9 @@ navigation:
   - drafts.yml
   - webhooks.yml
   - domains.yml
+  - credentials.yml
   - lists.yml
+  - forwarding.yml
   - metrics.yml
   - api-keys.yml
   - accounts.yml

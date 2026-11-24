@@ -22,23 +22,23 @@ Branch on `code`, not on `name` or `message`: the `name` and `message` fields ke
 
 ### missing_authorization
 
-The `Authorization` header was missing, did not use the required case-sensitive `Bearer ` scheme, used the scheme correctly but carried no key value after `Bearer `, or carried whitespace inside the key value (no credential contains whitespace) — the message states which. Send your API key as `Authorization: Bearer <api_key>`. Create a key at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`.
+The `Authorization` header was missing, did not use the required case-sensitive `Bearer ` scheme, used the scheme correctly but carried no key value after `Bearer `, or carried whitespace inside the key value (no credential contains whitespace) — the message states which. Send your API key as `Authorization: Bearer <api_key>`. Create a key at [console.agentmail.to](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=errors) or via `POST /v0/api-keys`.
 
 ### invalid_token_type
 
-The endpoint requires an API key, but the request carried a console session token (JWT). Authenticate with an API key instead: keys start with `am_`. Create one at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`.
+The endpoint requires an API key, but the request carried a console session token (JWT). Authenticate with an API key instead: keys start with `am_`. Create one at [console.agentmail.to](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=errors) or via `POST /v0/api-keys`.
 
 ### unknown_api_key
 
-The API key was not recognized. Confirm you copied the full value (keys start with `am_`) and that the key has not been revoked. Create a new key at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`.
+The API key was not recognized. Confirm you copied the full value (keys start with `am_`) and that the key has not been revoked. Create a new key at [console.agentmail.to](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=errors) or via `POST /v0/api-keys`.
 
 ### api_key_expired
 
-The API key is valid but its `expires_at` has passed, so it no longer authenticates. Expiry is set when a key is created and cannot be extended or changed. Create a new key at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`, choosing its lifetime with `expires_at`, and retry with it. Depending on how the request is routed, an expired key can instead be refused with a bare `403` whose body is `{"message":"Forbidden"}`; the remedy is the same.
+The API key is valid but its `expires_at` has passed, so it no longer authenticates. Expiry is set when a key is created and cannot be extended or changed. Create a new key at [console.agentmail.to](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=errors) or via `POST /v0/api-keys`, choosing its lifetime with `expires_at`, and retry with it. Depending on how the request is routed, an expired key can instead be refused with a bare `403` whose body is `{"message":"Forbidden"}`; the remedy is the same.
 
 ### unauthorized
 
-Generic authentication failure. Send a valid API key in the `Authorization: Bearer <api_key>` header. Create or rotate keys at [console.agentmail.to](https://console.agentmail.to) or via `POST /v0/api-keys`.
+Generic authentication failure. Send a valid API key in the `Authorization: Bearer <api_key>` header. Create or rotate keys at [console.agentmail.to](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=errors) or via `POST /v0/api-keys`.
 
 ## Authorization (403)
 
@@ -58,7 +58,7 @@ Joining AgentMail Labs (`POST /v0/organizations/labs`) is stricter: it needs an 
 
 ### forbidden
 
-The authenticated API key is not allowed to perform this action, usually because of its scope (organization, pod, or inbox). Retry with a key whose scope and permissions cover this resource. Calendar endpoints also return `forbidden` in EU production (`api.agentmail.eu`), where Calendar isn't available yet; a different key won't fix that.
+The authenticated API key is not allowed to perform this action, usually because of its scope (organization, pod, or inbox). Retry with a key whose scope and permissions cover this resource. Calendar endpoints also return `forbidden` in EU production (`api.agentmail.eu`), where Calendar isn't available yet; a different key won't fix that. Confirming an [auto-forwarding](/auto-forwarding) address returns `forbidden` when the code is wrong, with `message` saying how many attempts remain, or when no code is outstanding for the address. Check the code and submit it again while attempts remain; when none remain or no code is outstanding, call `POST /v0/forwarding/verifications` for a new code.
 
 ## Request errors (400 / 404 / 422)
 
@@ -90,7 +90,7 @@ The requested value (for example, an inbox username) is already in use. Choose a
 
 ### limit_exceeded
 
-A resource limit has been reached (for example, the webhook endpoint limit). Remove an existing resource before adding another, or email support@agentmail.cc to raise your limit. For agent-verification OTP attempts, the `fix` distinguishes the two states: while the exhausted code is still live, every submission is rejected (even the correct code) until it expires 24 hours from issue, after which `POST /v0/agent/sign-up` issues a fresh code with a reset attempt count; if the code has already expired, sign up again immediately.
+A resource limit has been reached (for example, the webhook endpoint limit). Remove an existing resource before adding another, or email support@agentmail.cc to raise your limit. For agent-verification OTP attempts, the `fix` distinguishes the two states: while the exhausted code is still live, every submission is rejected (even the correct code) until it expires 24 hours from issue, after which `POST /v0/agent/sign-up` issues a fresh code with a reset attempt count; if the code has already expired, sign up again immediately. An [auto-forwarding](/auto-forwarding) confirmation code that has used its 10 attempts is rejected even when correct; call `POST /v0/forwarding/verifications` for a new code.
 
 ### domain_not_verified
 
@@ -98,7 +98,7 @@ The sending domain has not completed DNS verification. Add the DNS records retur
 
 ### conflict
 
-The request conflicts with another request under the same `Idempotency-Key`. Either the original send is still in progress — wait briefly and retry the identical request: once the first attempt completes the retry returns its send, and if the first attempt failed without completing, the key becomes retryable again after a short window — or the key was already used for a different message (generate a new key for new messages). See [Idempotency](/idempotency).
+The request conflicts with another request under the same `Idempotency-Key`. Either the original send is still in progress — wait briefly and retry the identical request: once the first attempt completes the retry returns its send, and if the first attempt failed without completing, the key becomes retryable again after a short window — or the key was already used for a different message (generate a new key for new messages). See [Idempotency](/idempotency). Confirming an [auto-forwarding](/auto-forwarding) address also returns `conflict` when another request for the same address committed first; get the level's forwarding to see whether the address is verified, or start the verification again.
 
 ### race_condition
 
@@ -174,7 +174,7 @@ The date ended more than 30 days ago and its record is no longer kept, or it was
 
 The message was not sent. The message names the reason, and the `fix` states which case applies:
 
-- **Recipients on a send block list** — remove them from the request, or delete the matched block entry. The `fix` names the stored entry (which may be a domain rather than the recipient address) and the exact `DELETE /v0/…/lists/send/block/{entry}` path at the scope where it lives. Deleting an entry at a broader scope than your key (an organization-level block hit by a pod- or inbox-scoped key) requires a key scoped at that level. Read-only entries — added automatically from bounces, complaints, and unsubscribes — cannot be deleted via the API; email support@agentmail.cc to have one reviewed.
+- **Recipients on a send block list** — remove them from the request, or delete the matched block entry. The `fix` names the stored entry (which may be a domain rather than the recipient address) and the exact `DELETE /v0/…/lists/send/block/{entry}` path at the scope where it lives. Deleting an entry at a broader scope than your key (an organization-level block hit by a pod- or inbox-scoped key) requires a key scoped at that level. Read-only entries — added automatically from bounces, complaints, and unsubscribes — cannot be deleted via the API. An organization admin can reactivate a hard-bounced address once, within 90 days of the bounce, from the Lists page in the [Console](https://console.agentmail.to/dashboard/lists?utm_source=docs&utm_medium=docs&utm_campaign=errors); for complaints, unsubscribes, and older bounces, email support@agentmail.cc to have one reviewed.
 - **Recipients missing from an active send allow list** — add them via `POST /v0/lists/send/allow` (there is no block entry to delete). On an agent organization that has not completed verification, sending is restricted to the human's email and list entries cannot be created yet — complete `POST /v0/agent/verify` instead. If no human email is attached yet, sending is blocked for every recipient until one is attached with `POST /v0/agent/human`.
 - A suspended account, inbox, or pod is not `message_rejected`: it returns [`account_suspended`](#account_suspended), [`inbox_suspended`](#inbox_suspended), or [`pod_suspended`](#pod_suspended).
 - **An unfetchable attachment URL** — use a URL that AgentMail can download without custom authentication headers or cookies, or send the attachment inline as Base64. Redirects and pre-signed URLs are supported, and the final response must be a successful 2xx response.
@@ -203,17 +203,17 @@ No change to the request clears this, so retrying keeps failing until the suspen
 
 ### inbox_suspended
 
-Sending from this inbox is suspended for its bounce or complaint rate (`403`); `suspended_reason` says which. Other inboxes in your organization are unaffected and keep sending. The inbox still receives mail, and webhooks and WebSocket events for it still fire. A scheduled draft from the inbox fails instead of sending. Resuming a paused inbox does not lift a suspension; email [support@agentmail.cc](mailto:support@agentmail.cc).
+Sending from this inbox is suspended for its bounce or complaint rate (`403`); `suspended_reason` says which. Other inboxes in your organization are unaffected and keep sending. The inbox still receives mail, and webhooks and WebSocket events for it still fire. A scheduled draft from the inbox fails instead of sending. Reactivating a deactivated inbox does not lift a suspension; email [support@agentmail.cc](mailto:support@agentmail.cc).
 
 ### pod_suspended
 
 Sending from the inboxes in this pod is suspended for the pod's bounce or complaint rate (`403`); `suspended_reason` says which. Other pods in your organization are unaffected and keep sending. Inboxes in the pod still receive mail, and webhooks and WebSocket events still fire. Email [support@agentmail.cc](mailto:support@agentmail.cc) to resolve it.
 
-### inbox_paused
+### inbox_deactivated
 
-The inbox is paused, so it cannot send. Resume it with `PATCH /v0/inboxes/{inbox_id}` and `{"status": "active"}` using a key with the `inbox_update` permission, then send again. Mail that arrived while the inbox was paused was dropped and is not delivered on resume. See [Pausing an inbox](/inboxes#pausing-an-inbox).
+The inbox is deactivated, so it cannot send. Reactivate it with `PATCH /v0/inboxes/{inbox_id}` and `{"status": "active"}` using a key with the `inbox_update` permission, then send again. Mail that arrived while the inbox was deactivated was dropped and is not delivered on reactivation. See [Deactivating an inbox](/inboxes#deactivating-an-inbox).
 
-If the inbox has also been suspended for its bounce or complaint rate, the send reports that suspension instead. A suspension of the inbox's pod is reported only after the inbox is resumed. Resuming the inbox does not lift either suspension: email support@agentmail.cc.
+If the inbox has also been suspended for its bounce or complaint rate, the send reports that suspension instead. A suspension of the inbox's pod is reported only after the inbox is reactivated. Reactivating the inbox does not lift either suspension: email support@agentmail.cc.
 
 ## Request too large (413)
 
@@ -237,7 +237,7 @@ A calendar request body is larger than its limit: 128 KB for events, 8 KB for ca
 
 ### rate_limit_exceeded
 
-You are sending requests too quickly or have hit a usage limit, including the send limits that calendar invitation emails count toward. Honor the `Retry-After` header when present, and retry with exponential backoff. A calendar request rejected for its invitation emails changed nothing; retry it later, or without `send_invites`.
+You are sending requests too quickly or have hit a usage limit, including the send limits that calendar invitation emails count toward. Honor the `Retry-After` header when present, and retry with exponential backoff. A calendar request rejected for its invitation emails changed nothing; retry it later, or without `send_invites`. Auto-forwarding verification codes are limited per address and per organization, and that response has no `Retry-After` header; see [Verifying an address](/auto-forwarding#verifying-an-address).
 
 ### service_unavailable
 

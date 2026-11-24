@@ -36,7 +36,7 @@ Choose your preferred method to create a domain and get the required DNS records
 
 <Tabs>
   <Tab title="Console">
-    Navigate to the [AgentMail Console](https://console.agentmail.to) and follow these steps:
+    Navigate to the [AgentMail Console](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=custom-domains) and follow these steps:
 
     1. **Go to Domains Section**: Click on "Domains" in the left sidebar
     2. **Add New Domain**: Click "Add Domain" or "Create Domain" button
@@ -178,20 +178,7 @@ A BIND zone file is a text file that contains DNS resource records in a standard
     </Frame>
     4. Review the records and click **"Import"**
 
-    <Warning title="CRITICAL: Route 53 TXT Record 255 Character Limit">
-          **AWS Route 53 has a 255 character maximum per string.** It will get angry at the DKIM record since it is longer than 255 chars (we use more secure encryption key so we get better deliverability with Gmail!)
-
-          **When entering TXT values in the Route 53 UI, you MUST do the following.**
-          1. Split the value into two quoted strings.
-            a. e.g.: "abcd" -> "ab" "cd"
-          2. Keep both quoted strings on the **same line**. A space between them is fine; a line break is not.
-
-          **Correct:** `"first-part-of-value" "second-part-of-value"` (with or without the space between the strings)
-
-          **Wrong:** the two quoted strings on separate lines
-
-          Each line in the Route 53 **Value** box is a separate TXT record. If you press Enter between the strings, Route 53 creates **two separate TXT records** instead of one record with two strings, neither record holds the full key, and the DKIM record fails verification. Email authentication then fails, and providers like **Gmail will reject your emails**.
-        </Warning>
+    <Markdown src="../../../snippets/route53-dkim-split.mdx" />
 
   </Tab>
   <Tab title="Porkbun">
@@ -251,7 +238,7 @@ Below are detailed instructions for AWS Route53, CloudFlare, and Namecheap. The 
 
 <Tabs>
   <Tab title="Via Console">
-    If you created your domain through the [AgentMail Console](https://console.agentmail.to), the DNS records are displayed in a simplified format that's ready for copy-paste into your DNS provider.
+    If you created your domain through the [AgentMail Console](https://console.agentmail.to?utm_source=docs&utm_medium=docs&utm_campaign=custom-domains), the DNS records are displayed in a simplified format that's ready for copy-paste into your DNS provider.
 
     <Tabs>
       <Tab title="Cloudflare">
@@ -275,20 +262,7 @@ Below are detailed instructions for AWS Route53, CloudFlare, and Namecheap. The 
           - **Record name:** Copy the **Name** value directly from the console (e.g., `_dmarc` or `mail` or `selector._domainkey`).
           - **Value:** Copy the **Value** from the console, ensuring it is enclosed in quotes.
 
-        <Warning title="CRITICAL: Route 53 TXT Record 255 Character Limit">
-          **AWS Route 53 has a 255 character maximum per string.** It will get angry at the DKIM record since it is longer than 255 chars (we use more secure encryption key so we get better deliverability with Gmail!)
-
-          **When entering TXT values in the Route 53 UI, you MUST do the following.**
-          1. Split the value into two quoted strings.
-            a. e.g.: "abcd" -> "ab" "cd"
-          2. Keep both quoted strings on the **same line**. A space between them is fine; a line break is not.
-
-          **Correct:** `"first-part-of-value" "second-part-of-value"` (with or without the space between the strings)
-
-          **Wrong:** the two quoted strings on separate lines
-
-          Each line in the Route 53 **Value** box is a separate TXT record. If you press Enter between the strings, Route 53 creates **two separate TXT records** instead of one record with two strings, neither record holds the full key, and the DKIM record fails verification. Email authentication then fails, and providers like **Gmail will reject your emails**.
-        </Warning>
+        <Markdown src="../../../snippets/route53-dkim-split.mdx" />
 
         - **MX:**
           - **Record name:** Enter the **Name** exactly as we return it (for example `mail`). Leave the field blank when the name is `@`.
@@ -327,20 +301,7 @@ Below are detailed instructions for AWS Route53, CloudFlare, and Namecheap. The 
           - **Record name:** Enter the `name` from the API (e.g., `_dmarc`, `mail`, or `selector._domainkey`).
           - **Value:** Copy paste the `value` from the API, ensuring it is enclosed in quotes.
 
-        <Warning title="CRITICAL: Route 53 TXT Record 255 Character Limit">
-          **AWS Route 53 has a 255 character maximum per string.** It will get angry at the DKIM record since it is longer than 255 chars (we use more secure encryption key so we get better deliverability with Gmail!)
-
-          **When entering TXT values in the Route 53 UI, you MUST do the following.**
-          1. Split the value into two quoted strings.
-            a. e.g.: "abcd" -> "ab" "cd"
-          2. Keep both quoted strings on the **same line**. A space between them is fine; a line break is not.
-
-          **Correct:** `"first-part-of-value" "second-part-of-value"` (with or without the space between the strings)
-
-          **Wrong:** the two quoted strings on separate lines
-
-          Each line in the Route 53 **Value** box is a separate TXT record. If you press Enter between the strings, Route 53 creates **two separate TXT records** instead of one record with two strings, neither record holds the full key, and the DKIM record fails verification. Email authentication then fails, and providers like **Gmail will reject your emails**.
-        </Warning>
+        <Markdown src="../../../snippets/route53-dkim-split.mdx" />
 
         - **MX:**
           - **Record name:** Enter the `name` from the API (for example `mail`). Leave the field blank when the name is `@`.
@@ -355,7 +316,7 @@ Below are detailed instructions for AWS Route53, CloudFlare, and Namecheap. The 
 <Step title="3. Verify Your Domain">
 Once you've added the records, AgentMail automatically begins to check them. This can take anywhere from a few minutes to 48 hours for your DNS changes to propagate across the internet.
 
-Check your domain verification status in the [AgentMail Console](https://console.agentmail.to/dashboard/domains):
+Check your domain verification status in the [AgentMail Console](https://console.agentmail.to/dashboard/domains?utm_source=docs&utm_medium=docs&utm_campaign=custom-domains):
 
 1. **Navigate to Domains**: Go to the "Domains" section in the left sidebar
 2. **View Domain Status**: Find your domain in the list and check its status
@@ -469,7 +430,9 @@ Once the domain is `Verified`, create an inbox on any subdomain by passing it as
 
 <CodeBlocks>
 ```python title="Python"
-inbox = client.inboxes.create(username="agent", domain="bot.example.com")
+from agentmail.inboxes import CreateInboxRequest
+
+inbox = client.inboxes.create(request=CreateInboxRequest(username="agent", domain="bot.example.com"))
 print(inbox.inbox_id)  # agent@bot.example.com
 ```
 
